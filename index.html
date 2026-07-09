@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>iPad 4 Cinema</title>
+    <style>
+        /* Крупные кнопки, чтобы удобно нажимать пальцем на iPad */
+        .btn { padding: 15px; margin: 5px; font-size: 18px; border-radius: 8px; }
+        #player { width: 100%; max-width: 800px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <input type="text" id="rezkaUrl" placeholder="Ссылка на HDRezka" style="width:300px; padding:10px;">
+    <button onclick="loadContent()" class="btn">Загрузить серии</button>
+
+    <div id="buttonsContainer"></div>
+
+    <video id="player" controls playsinline preload="none">
+        <source id="videoSource" src="" type="application/x-mpegURL">
+        Ваш iPad не поддерживает это видео.
+    </video>
+
+    <script>
+        function loadContent() {
+            const url = document.getElementById('rezkaUrl').value;
+            const container = document.getElementById('buttonsContainer');
+            container.innerHTML = "Загрузка...";
+
+            // Запрос к вашему бесплатному серверу на PythonAnywhere
+            fetch(`https://ВАШ_://pythonanywhere.com{encodeURIComponent(url)}&season=1`)
+                .then(res => res.json())
+                .then(data => {
+                    container.innerHTML = "";
+                    if(data.success) {
+                        // Перебираем серии и строим кнопки
+                        Object.keys(data.episodes).forEach(epNum => {
+                            let btn = document.createElement('button');
+                            btn.className = "btn";
+                            btn.innerText = `Серия ${epNum}`;
+                            // При клике запускаем видео
+                            btn.onclick = () => playVideo(data.episodes[epNum]);
+                            container.appendChild(btn);
+                        });
+                    } else {
+                        container.innerHTML = "Ошибка парсинга: " + data.error;
+                    }
+                });
+        }
+
+        function playVideo(streamUrl) {
+            const video = document.getElementById('player');
+            const source = document.getElementById('videoSource');
+            
+            source.src = streamUrl;
+            video.load(); // Перезагружаем плеер под новую ссылку
+            video.play(); // Запуск!
+        }
+    </script>
+</body>
+</html>
