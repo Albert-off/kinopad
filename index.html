@@ -141,10 +141,15 @@
             }
             
             container.innerHTML = "Загрузка серий роботом...";
-
-            // ВОТ ТАК пишется правильно: с вашим доменом, знаком '?' и знаком '$'
+        
             fetch(`https://albertaudley.pythonanywhere.com/get_episodes?url=${encodeURIComponent(url)}&season=1`)
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        // Если сервер ответил ошибкой 500, пробуем прочитать текст ошибки
+                        return res.json().then(errData => { throw new Error(errData.error || "Ошибка сервера"); });
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     container.innerHTML = "";
                     if(data.success && data.episodes && Object.keys(data.episodes).length > 0) {
@@ -156,14 +161,18 @@
                             container.appendChild(btn);
                         });
                     } else {
-                        container.innerHTML = "<span class='error-msg'>Ошибка парсинга: " + (data.error || "серии не найдены") + "</span>";
+                        container.innerHTML = "<span class='error-msg'>Ошибка: " + (data.error || "серии не найдены") + "</span>";
                     }
                 })
                 .catch(err => {
-                    container.innerHTML = "<span class='error-msg'>Не удалось связаться с сервером PythonAnywhere</span>";
+                    // Если ошибка вызвана прокси PythonAnywhere
+                    if (err.message.includes("ProxyError") || err.message.includes("Tunnel connection failed")) {
+                        container.innerHTML = "<span class='error-msg'>Ошибка: Бесплатный тариф PythonAnywhere блокирует запросы к HDRezka. Нужен платный тариф или другой хостинг.</span>";
+                    } else {
+                        container.innerHTML = "<span class='error-msg'>Не удалось загрузить данные: " + err.message + "</span>";
+                    }
                 });
         }
-
         function playVideo(streamUrl) {
             const video = document.getElementById('player');
             const source = document.getElementById('videoSource');
