@@ -31,8 +31,7 @@
 
     <div id="buttonsContainer"></div>
 
-    <video id="player" controls playsinline preload="none">
-        <source id="videoSource" src="" type="video/mp4">
+    <video id="player" controls playsinline preload="auto">
         Ваш iPad не поддерживает это видео.
     </video>
 
@@ -59,7 +58,6 @@
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            // Теперь бэкенд возвращает в ep готовую ссылку на проксирование, передаем её напрямую
                             btn.onclick = function() { playEpisode(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
@@ -76,18 +74,21 @@
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
 
-            // Делаем простой запрос к нашему серверу Render (замаскированному под iPhone)
             fetch(proxyUrl)
                 .then(res => res.json())
                 .then(data => {
                     buttonElement.innerText = originalText;
                     if (data.success && data.video_url) {
                         const video = document.getElementById('player');
-                        const source = document.getElementById('videoSource');
                         
-                        source.src = data.video_url;
+                        // Меняем src напрямую у видео-тега, это заставляет iOS плееры переключаться на HLS стриминг
+                        video.src = data.video_url;
                         video.load(); 
-                        video.play().catch(e => console.log("Нажмите Play вручную"));
+                        
+                        // Пытаемся запустить. Если iOS блокирует автоплей, юзер просто нажмет на большой белый треугольник плеера
+                        video.play().catch(e => {
+                            console.log("Нажмите на кнопку плеера вручную для старта.");
+                        }); 
                     } else {
                         alert("Ошибка: " + (data.error || "Не удалось получить видео"));
                     }
