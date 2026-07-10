@@ -5,113 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iPad 4 Cinema</title>
     <style>
-        /* Глубокий черный фон в стиле кинотеатра */
         body { 
             background-color: #0F0F0F; 
             color: #E0E0E0; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
         }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #FFFFFF;
-            letter-spacing: -0.5px;
-        }
-
-        /* Стильный контейнер для ввода */
-        .search-box {
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            gap: 10px;
-            margin-bottom: 25px;
-        }
-
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; }
+        .search-box { width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 25px; }
         input[type="text"] { 
-            flex: 1;
-            padding: 15px; 
-            font-size: 16px; 
-            border-radius: 10px; 
-            border: 1px solid #2C2C2E; 
-            background-color: #1C1C1E; 
-            color: #FFFFFF;
-            outline: none;
-            transition: border-color 0.2s;
+            flex: 1; padding: 15px; font-size: 16px; border-radius: 10px; 
+            border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none;
         }
-
-        input[type="text"]:focus {
-            border-color: #0A84FF; /* Синий акцент Apple */
-        }
-
-        /* Крупная кнопка отправки */
-        .btn-main { 
-            padding: 15px 25px; 
-            font-size: 16px; 
-            font-weight: 600;
-            border-radius: 10px; 
-            border: none;
-            background-color: #0A84FF;
-            color: #FFFFFF;
-            cursor: pointer;
-        }
-
-        .btn-main:active {
-            background-color: #0056B3;
-        }
-
-        /* Сетка для серий — кнопки не будут растягиваться */
-        #buttonsContainer { 
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 25px;
-            font-size: 16px;
-            color: #8E8E93;
-        }
-
-        /* Кнопки серий в темном стиле */
-        .btn-episode { 
-            padding: 14px 20px; 
-            font-size: 17px; 
-            font-weight: 500;
-            border-radius: 10px; 
-            border: 1px solid #2C2C2E;
-            background-color: #1C1C1E;
-            color: #0A84FF;
-            cursor: pointer;
-            min-width: 110px;
-            box-sizing: border-box;
-        }
-
-        .btn-episode:active {
-            background-color: #2C2C2E;
-            color: #64D2FF;
-        }
-
-        /* Премиальный вид для видеоплеера */
-        #player { 
-            width: 100%; 
-            max-width: 800px; 
-            border-radius: 14px; 
-            background-color: #000000;
-            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7);
-            border: 1px solid #1C1C1E;
-        }
-
-        .error-msg {
-            color: #FF453A;
-            font-weight: 500;
-        }
+        input[type="text"]:focus { border-color: #0A84FF; }
+        .btn-main { padding: 15px 25px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #0A84FF; color: #FFFFFF; cursor: pointer; }
+        #buttonsContainer { width: 100%; max-width: 800px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 25px; }
+        .btn-episode { padding: 14px 20px; font-size: 17px; font-weight: 500; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #0A84FF; cursor: pointer; min-width: 110px; }
+        #player { width: 100%; max-width: 800px; border-radius: 14px; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; }
+        .error-msg { color: #FF453A; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -140,75 +52,91 @@
                 return;
             }
             
-            container.innerHTML = "Загрузка серий роботом (Render может просыпаться до 30-50 сек)...";
+            container.innerHTML = "Загрузка серий...";
         
             const renderApiUrl = `https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
         
             fetch(renderApiUrl)
-                .then(function(res) {
-                    return res.json();
-                })
-                .then(function(data) {
+                .then(res => res.json())
+                .then(data => {
                     container.innerHTML = "";
                     if (data.success && data.episodes) {
-                        // Сортируем серии по порядку
-                        const epNumbers = Object.keys(data.episodes).sort(function(a, b) { return a - b; });
+                        const epNumbers = Object.keys(data.episodes).sort((a, b) => a - b);
                         
                         if (epNumbers.length === 0) {
                             container.innerHTML = "<span class='error-msg'>Серии не найдены.</span>";
                             return;
                         }
         
-                        epNumbers.forEach(function(epNum) {
+                        epNumbers.forEach(epNum => {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            // ИСПРАВЛЕНО: Теперь вызывается playEpisode, которая сделает запрос к нашему API за mp4 ссылкой
-                            btn.onclick = function() { playEpisode(data.episodes[epNum], btn); };
+                            // Передаем объект с ID прямо в функцию клика
+                            btn.onclick = function() { playEpisodeDirect(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
                     } else {
                         container.innerHTML = "<span class='error-msg'>Ошибка: " + (data.error || "неизвестная ошибка") + "</span>";
                     }
                 })
-                .catch(function(err) {
-                    container.innerHTML = "<span class='error-msg'>Ошибка сети или сервера. Возможно, Render еще просыпается. Попробуйте еще раз через 20 секунд.</span>";
-                    console.log(err);
+                .catch(err => {
+                    container.innerHTML = "<span class='error-msg'>Ошибка сети. Сервер Render просыпается, подождите 20 секунд и нажмите Найти еще раз.</span>";
                 });
         }
         
-        // ИСПРАВЛЕНО: Функция запрашивает у Render прямую ссылку и скармливает её плееру
-        function playEpisode(proxyUrl, buttonElement) {
+        // КЛЮЧЕВАЯ ФУНКЦИЯ: Запрос делает сам iPad напрямую к Резке
+        function playEpisodeDirect(epData, buttonElement) {
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
-            buttonElement.style.disabled = true;
+            
+            // Создаем правильные POST параметры, которые требует Резка
+            const formData = new FormData();
+            formData.append('id', epData.id);
+            formData.append('season', epData.season);
+            formData.append('episode', epData.episode);
+            formData.append('translator_id', epData.translator_id);
+            formData.append('action', 'get_stream');
 
-            fetch(proxyUrl)
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    buttonElement.innerText = originalText;
-                    buttonElement.style.disabled = false;
+            // Отправляем запрос прямо с iPad
+            fetch("https://hdrezka.me/engine/ajax/get_cdn_series.php", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                buttonElement.innerText = originalText;
+                if (data.success && data.url) {
+                    // Извлекаем mp4 ссылки из строки донора
+                    const streamsStr = data.url;
+                    const urls = streamsStr.match(/https?:\/\/[^\s,\s]+(?:\.mp4|\.m3u8)[^\s]*/g);
+                    
+                    if (urls) {
+                        // Берем последнюю ссылку (лучшее качество) и убираем лишнее
+                        let finalUrl = urls[urls.length - 1].split(' or ')[0].trim();
+                        // Если ссылка начинается на http://, меняем на https://
+                        if (finalUrl.startsWith("http://")) {
+                            finalUrl = finalUrl.replace("http://", "https://");
+                        }
 
-                    if (data.success && data.video_url) {
                         const video = document.getElementById('player');
                         const source = document.getElementById('videoSource');
                         
-                        source.src = data.video_url;
+                        source.src = finalUrl;
                         video.load(); 
-                        
-                        video.play().catch(function(e) {
-                            console.log("Автозапуск заблокирован, нажмите Play вручную");
-                        }); 
+                        video.play().catch(e => console.log("Нажмите Play вручную")); 
                     } else {
-                        alert("Ошибка получения видео: " + (data.error || "Неизвестная ошибка донора"));
+                        alert("Не удалось извлечь видео-файл из ответа.");
                     }
-                })
-                .catch(function(err) {
-                    buttonElement.innerText = originalText;
-                    buttonElement.style.disabled = false;
-                    console.error("Ошибка:", err);
-                    alert("Ошибка сети при получении видеопотока");
-                });
+                } else {
+                    alert("Резка отклонила запрос. Попробуйте обновить страницу.");
+                }
+            })
+            .catch(err => {
+                buttonElement.innerText = originalText;
+                console.error(err);
+                alert("Ошибка сети. Убедитесь, что зеркало hdrezka.me доступно в вашем браузере.");
+            });
         }
     </script>
 </body>
