@@ -75,7 +75,7 @@
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
 
-            // Строим параметры для отправки донору
+            // Готовим параметры
             const urlParams = new URLSearchParams();
             urlParams.append('id', ep.id);
             urlParams.append('season', ep.season);
@@ -83,26 +83,28 @@
             urlParams.append('translator_id', ep.translator_id);
             urlParams.append('action', 'get_stream');
 
-            // Используем публичный CORS-прокси для обхода ограничений браузера
-            const corsProxy = "https://cors-anywhere.herokuapp.com/";
-            const targetUrl = `${ep.domain}/engine/ajax/get_cdn_series.php`;
+            // НОВЫЙ ПРОКСИ: Работает без активаций и кнопок напрямую
+            const corsProxy = "https://api.allorigins.win/raw?url=";
+            const targetUrl = encodeURIComponent(`${ep.domain}/engine/ajax/get_cdn_series.php`);
 
             fetch(corsProxy + targetUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
                 },
                 body: urlParams.toString()
             })
-            .then(res => res.text()) // Читаем как текст, чтобы избежать сбоев парсинга
+            .then(res => {
+                if (!res.ok) throw new Error('Ошибка ответа прокси');
+                return res.text();
+            })
             .then(textData => {
                 buttonElement.innerText = originalText;
                 
-                // Ищем видео-ссылки в тексте
+                // Вытаскиваем mp4/m3u8 из ответа
                 const urls = textData.match(/https?:\/\/[^\s,\s"]+(?:\.mp4|\.m3u8)[^\s"]*/g);
                 if (urls) {
-                    let finalVideoUrl = urls[urls.length - 1].split(' or ')[0].replace(/\\/g, '').strip();
+                    let finalVideoUrl = urls[urls.length - 1].split(' or ')[0].replace(/\\/g, '').trim();
                     if (finalVideoUrl.startsWith("http://")) {
                         finalVideoUrl = finalVideoUrl.replace("http://", "https://");
                     }
@@ -114,21 +116,14 @@
                     video.load(); 
                     video.play().catch(e => console.log("Нажмите Play вручную"));
                 } else {
-                    alert("Видео-поток не найден. Попробуйте сменить зеркало Резки.");
+                    alert("Резка заблокировала этот прокси. Попробуйте вставить ссылку с другого зеркала (например, rezka.ag вместо rezka-tv.org).");
                 }
             })
             .catch(err => {
                 buttonElement.innerText = originalText;
                 console.error(err);
-                alert("Ошибка CORS-прокси. Проверьте соединение.");
+                alert("Ошибка соединения с CORS-прокси.");
             });
-        }
-
-        // Небольшой хелпер для очистки строк в старых браузерах
-        if (!String.prototype.strip) {
-            String.prototype.strip = function() {
-                return this.replace(/^\s+|\s+$/g, '');
-            };
         }
     </script>
 </body>
