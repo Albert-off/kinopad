@@ -14,7 +14,7 @@ def fix_url(url):
 
 @app.route('/', methods=['GET'])
 def home():
-    return "<html><body><h1>✓ Kinopad Финальный API Работает!</h1></body></html>"
+    return "<html><body><h1>✓ Kinopad Парсер Нового Поколения Работает!</h1></body></html>"
 
 @app.route('/get_episodes', methods=['GET'])
 def get_episodes():
@@ -30,10 +30,8 @@ def get_episodes():
             return jsonify({"success": False, "error": "Не удалось извлечь ID из ссылки."}), 400
         
         post_id = id_match.group(1)
-
         translator_match = re.search(r'-latest/(\d+)-', rezka_url)
         translator_id = translator_match.group(1) if translator_match else "1"
-
         season_match = re.search(r'/(\d+)-season', rezka_url)
         season = season_match.group(1) if season_match else requested_season
         
@@ -42,8 +40,8 @@ def get_episodes():
 
         episodes_data = {}
         for ep in range(1, 31):
-            # Ссылки снова ведут на наш сервер, который сделает правильный POST без CORS-проблем
-            episodes_data[str(ep)] = f"https://kinopad.onrender.com/get_stream_direct?id={post_id}&season={season}&episode={ep}&translator_id={translator_id}&domain={domain}"
+            # Передаем саму ссылку на главную страницу сериала, чтобы распарсить её код напрямую!
+            episodes_data[str(ep)] = f"https://kinopad.onrender.com/get_stream_via_page?id={post_id}&season={season}&episode={ep}&translator_id={translator_id}&orig_url={encodeURIComponent(rezka_url)}"
 
         return jsonify({
             "success": True,
@@ -54,49 +52,45 @@ def get_episodes():
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка обработки: {str(e)}"}), 500
 
-# ЭТОТ РОУТ ДЕЛАЕТ ЧИСТЫЙ POST ЗАПРОС СИМУЛИРУЯ МОБИЛЬНЫЙ БРАУЗЕР
-@app.route('/get_stream_direct', methods=['GET'])
-def get_stream_direct():
+# ВСЯ МАГИЯ ТУТ: Парсим главную страницу вместо AJAX-скрипта
+@app.route('/get_stream_via_page', methods=['GET'])
+def get_stream_via_page():
     post_id = request.args.get('id')
     season = request.args.get('season')
     episode = request.args.get('episode')
     translator_id = request.args.get('translator_id', '1')
-    domain = request.args.get('domain', 'https://hdrezka.me')
+    orig_url = request.args.get('orig_url')
 
-    url = f"{domain}/engine/ajax/get_cdn_series.php"
-    
-    data = {
-        "id": post_id,
-        "season": season,
-        "episode": episode,
-        "translator_id": translator_id,
-        "action": "get_stream"
-    }
-
-    # Маскируемся под официальное мобильное приложение, для которого Cloudflare всегда отключен!
     headers = {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Origin": domain,
-        "Referer": domain + "/"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"
     }
 
     try:
-        response = requests.post(url, data=data, headers=headers, timeout=10)
-        text_data = response.text
+        # 1. Запрашиваем обычную страницу сериала
+        page_response = requests.get(orig_url, headers=headers, timeout=10)
+        html_text = page_response.text
 
-        # Ищем mp4/m3u8 ссылки внутри ответа (даже если там кастомный JSON или текст)
-        urls = re.findall(r'https?://[^\s,\s"\\ movie]+(?:\.mp4|\.m3u8)[^\s"\\ movie]*', text_data)
+        # 2. Ищем код инициализации плеера sofia (он отдает потоки)
+        # Сначала попробуем вытащить прямые ссылки, которые часто лежат в кэше страницы
+        urls = re.findall(r'https?://[^\s,\s"\\ movie]+(?:\.mp4|\.m3u8)[^\s"\\ movie]*', html_text)
+        
+        # 3. Если на странице нашлись видео-потоки, отдаем их
         if urls:
-            # Берём ссылку с максимальным качеством (обычно последняя)
             final_url = urls[-1].split(' or ')[0].replace('\\', '').strip()
             return jsonify({"success": True, "video_url": fix_url(final_url)})
 
-        return jsonify({"success": False, "error": "Поток не найден. Попробуйте обновить ссылку донора."}), 404
+        # 4. Если напрямую не нашлось, делаем обходной маневр на мобильный cdn
+        fallback_url = f"https://stream.voidboost.cc/set_video?id={post_id}&season={season}&episode={episode}&translator_id={translator_id}"
+        return jsonify({"success": True, "video_url": fallback_url})
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+def encodeURIComponent(str):
+    import urllib.parse
+    return urllib.parse.quote(str, safe='~()*!\'')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
