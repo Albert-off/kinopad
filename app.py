@@ -25,7 +25,7 @@ def get_episodes():
         return jsonify({"success": False, "error": "Missing URL parameter"}), 400
 
     try:
-        # 1. Извлекаем ID поста и озвучки
+        # 1. Извлекаем ID поста и озвучки из твоей ссылки
         id_match = re.search(r'/(\d+)-[^/]+', rezka_url)
         if not id_match:
             return jsonify({"success": False, "error": "Не удалось извлечь ID из ссылки."}), 400
@@ -40,8 +40,7 @@ def get_episodes():
         
         episodes_data = {}
 
-        # 2. Генерируем ссылки, которые ведут на НАШ сервер (на роут /get_video_link)
-        # Больше никаких ERR_CONTENT_DECODING_FAILED в браузере!
+        # 2. Внимание! Ссылки для кнопок теперь ведут на НАШ сервер Render (/get_video_link)
         for ep in range(1, 31):
             episodes_data[str(ep)] = f"https://kinopad.onrender.com/get_video_link?id={post_id}&season={season}&episode={ep}&translator_id={translator_id}"
 
@@ -56,7 +55,7 @@ def get_episodes():
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка обработки: {str(e)}"}), 500
 
-# НОВЫЙ РОУТ: Он берет на себя тяжелую работу по общению с базой Резки
+# 3. ЭТОТ РОУТ ОБЯЗАТЕЛЕН! Он вытягивает реальный mp4, когда ты жмешь на кнопку серии
 @app.route('/get_video_link', methods=['GET'])
 def get_video_link():
     post_id = request.args.get('id')
@@ -64,7 +63,7 @@ def get_video_link():
     episode = request.args.get('episode')
     translator_id = request.args.get('translator_id', '1')
 
-    # Формируем правильный POST-запрос, который ждет Резка
+    # Имитируем правильный POST-запрос, который требует Резка
     url = "https://hdrezka.me/engine/ajax/get_cdn_series.php"
     data = {
         "id": post_id,
@@ -87,16 +86,13 @@ def get_video_link():
         res_json = response.json()
 
         if res_json.get("success") and "url" in res_json:
-            # Резка отдает кучу ссылок в одной строке, парсим максимальное качество (например, 720p или 1080p)
             streams_str = res_json["url"]
             
-            # Извлекаем ссылки на mp4/m3u8 файлы
+            # Парсим все ссылки на видеопотоки из ответа
             urls = re.findall(r'https?://[^\s,\s]+(?:\.mp4|\.m3u8)[^\s]*', streams_str)
             if urls:
-                # Берем первую (обычно она лучшего качества) и чистим её от лишних символов
+                # Берем видео-ссылку (обычно в конце лучшее качество)
                 final_video_url = urls[-1].split(' or ')[0].strip()
-                
-                # Перенаправляем плеер iPad прямо на этот видеофайл!
                 return jsonify({"success": True, "video_url": fix_url(final_video_url)})
         
         return jsonify({"success": False, "error": "Не удалось получить видео-поток от донора"}), 404
@@ -107,3 +103,4 @@ def get_video_link():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+    
