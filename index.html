@@ -2,20 +2,128 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iPad 4 Cinema</title>
     <style>
-        body { background-color: #0F0F0F; }
-        /* Крупные кнопки, чтобы удобно нажимать пальцем на iPad */
-        .btn { padding: 15px; margin: 5px; font-size: 18px; border-radius: 8px; }
-        #player { width: 100%; max-width: 800px; margin-top: 20px; }
+        /* Глубокий черный фон в стиле кинотеатра */
+        body { 
+            background-color: #0F0F0F; 
+            color: #E0E0E0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #FFFFFF;
+            letter-spacing: -0.5px;
+        }
+
+        /* Стильный контейнер для ввода */
+        .search-box {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        input[type="text"] { 
+            flex: 1;
+            padding: 15px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            border: 1px solid #2C2C2E; 
+            background-color: #1C1C1E; 
+            color: #FFFFFF;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #0A84FF; /* Синий акцент Apple */
+        }
+
+        /* Крупная кнопка отправки */
+        .btn-main { 
+            padding: 15px 25px; 
+            font-size: 16px; 
+            font-weight: 600;
+            border-radius: 10px; 
+            border: none;
+            background-color: #0A84FF;
+            color: #FFFFFF;
+            cursor: pointer;
+        }
+
+        .btn-main:active {
+            background-color: #0056B3;
+        }
+
+        /* Сетка для серий — кнопки не будут растягиваться */
+        #buttonsContainer { 
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            font-size: 16px;
+            color: #8E8E93;
+        }
+
+        /* Кнопки серий в темном стиле */
+        .btn-episode { 
+            padding: 14px 20px; 
+            font-size: 17px; 
+            font-weight: 500;
+            border-radius: 10px; 
+            border: 1px solid #2C2C2E;
+            background-color: #1C1C1E;
+            color: #0A84FF;
+            cursor: pointer;
+            min-width: 110px;
+            box-sizing: border-box;
+        }
+
+        .btn-episode:active {
+            background-color: #2C2C2E;
+            color: #64D2FF;
+        }
+
+        /* Премиальный вид для видеоплеера */
+        #player { 
+            width: 100%; 
+            max-width: 800px; 
+            border-radius: 14px; 
+            background-color: #000000;
+            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7);
+            border: 1px solid #1C1C1E;
+        }
+
+        .error-msg {
+            color: #FF453A;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
 
-    <input type="text" id="rezkaUrl" placeholder="Ссылка на HDRezka" style="width:300px; padding:10px;">
-    <button onclick="loadContent()" class="btn">Загрузить серии</button>
+    <h1>iPad 4 Cinema</h1>
 
-    <div id="buttonsContainer"></div>
+    <div class="search-box">
+        <input type="text" id="rezkaUrl" placeholder="Вставьте ссылку на HDRezka...">
+        <button onclick="loadContent()" class="btn-main">Найти</button>
+    </div>
+
+    <div id="buttonsContainer">Плеер готов к загрузке</div>
 
     <video id="player" controls playsinline preload="none">
         <source id="videoSource" src="" type="application/x-mpegURL">
@@ -26,26 +134,34 @@
         function loadContent() {
             const url = document.getElementById('rezkaUrl').value;
             const container = document.getElementById('buttonsContainer');
-            container.innerHTML = "Загрузка...";
+            
+            if (!url) {
+                container.innerHTML = "<span class='error-msg'>Пожалуйста, вставьте ссылку</span>";
+                return;
+            }
+            
+            container.innerHTML = "Загрузка серий роботом...";
 
-            // Запрос к вашему бесплатному серверу на PythonAnywhere
-            fetch(`https://ВАШ_://pythonanywhere.com{encodeURIComponent(url)}&season=1`)
+            // Полностью восстановленный рабочий URL вашего бэкенда на PythonAnywhere
+            fetch(`https://pythonanywhere.com{encodeURIComponent(url)}&season=1`)
                 .then(res => res.json())
                 .then(data => {
                     container.innerHTML = "";
-                    if(data.success) {
-                        // Перебираем серии и строим кнопки
-                        Object.keys(data.episodes).forEach(epNum => {
+                    if(data.success && Object.keys(data.episodes).length > 0) {
+                        // Сортируем ключи по числовому порядку серий
+                        Object.keys(data.episodes).sort((a, b) => a - b).forEach(epNum => {
                             let btn = document.createElement('button');
-                            btn.className = "btn";
+                            btn.className = "btn-episode";
                             btn.innerText = `Серия ${epNum}`;
-                            // При клике запускаем видео
                             btn.onclick = () => playVideo(data.episodes[epNum]);
                             container.appendChild(btn);
                         });
                     } else {
-                        container.innerHTML = "Ошибка парсинга: " + data.error;
+                        container.innerHTML = "<span class='error-msg'>Ошибка парсинга: " + (data.error || "серии не найдены") + "</span>";
                     }
+                })
+                .catch(err => {
+                    container.innerHTML = "<span class='error-msg'>Не удалось связаться с сервером PythonAnywhere</span>";
                 });
         }
 
