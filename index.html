@@ -45,22 +45,18 @@
                 return;
             }
 
-            // Если пользователь случайно вставил полную ссылку на Кинопоиск, вырежем из неё только цифры ID
+            // ИСПРАВЛЕНО: Чистый JS синтаксис для регулярных выражений, без лишней буквы "r"
             if (inputVal.includes("kinopoisk.ru")) {
-                const match = inputVal.match(r'/film/(\d+)|/series/(\d+)');
+                const match = inputVal.match(/\/film\/(\d+)|\/series\/(\d+)/);
                 if (match) {
                     inputVal = match[1] || match[2];
                 }
             }
 
-            // Используем авторитетный VidSrc / Vidsrc.cc балансировщик, у которого нет CORS проблем на iOS
-            // Он сам выведет меню выбора сезонов, серий и озвучек прямо внутри плеера!
             let targetUrl = "";
             if (inputVal.startsWith("tt")) {
-                // Если ввели IMDb ID
                 targetUrl = `https://vidsrc.to/embed/tv/${inputVal}`;
             } else {
-                // Если ввели ID Кинопоиска (работает для 99% СНГ релизов и аниме)
                 targetUrl = `https://vidsrc.cc/v2/embed/kp/${inputVal}`;
             }
 
