@@ -123,7 +123,7 @@
         <button onclick="loadContent()" class="btn-main">Найти</button>
     </div>
 
-    <div id="buttonsContainer">Плеер готов к загрузке</div>
+    <div id="buttonsContainer"></div>
 
     <video id="player" controls playsinline preload="none">
         <source id="videoSource" src="" type="application/x-mpegURL">
@@ -140,39 +140,43 @@
                 return;
             }
             
-            container.innerHTML = "Загрузка серий роботом...";
+            container.innerHTML = "Загрузка серий роботом (Render может просыпаться до 30-50 сек)...";
         
-            fetch(`https://albertaudley.pythonanywhere.com/get_episodes?url=${encodeURIComponent(url)}&season=1`)
-                .then(res => {
-                    if (!res.ok) {
-                        // Если сервер ответил ошибкой 500, пробуем прочитать текст ошибки
-                        return res.json().then(errData => { throw new Error(errData.error || "Ошибка сервера"); });
-                    }
+            // ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ССЫЛКУ ИЗ RENDER!
+            const renderApiUrl = `https://твой-сервис-на-render.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
+    
+            fetch(renderApiUrl)
+                .then(function(res) {
                     return res.json();
                 })
-                .then(data => {
+                .then(function(data) {
                     container.innerHTML = "";
-                    if(data.success && data.episodes && Object.keys(data.episodes).length > 0) {
-                        Object.keys(data.episodes).sort((a, b) => a - b).forEach(epNum => {
+                    if (data.success && data.episodes) {
+                        // Сортируем серии по порядку
+                        const epNumbers = Object.keys(data.episodes).sort(function(a, b) { return a - b; });
+                        
+                        if (epNumbers.length === 0) {
+                            container.innerHTML = "<span class='error-msg'>Серии не найдены.</span>";
+                            return;
+                        }
+    
+                        epNumbers.forEach(function(epNum) {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
-                            btn.innerText = `Серия ${epNum}`;
-                            btn.onclick = () => playVideo(data.episodes[epNum]);
+                            btn.innerText = "Серия " + epNum;
+                            btn.onclick = function() { playVideo(data.episodes[epNum]); };
                             container.appendChild(btn);
                         });
                     } else {
-                        container.innerHTML = "<span class='error-msg'>Ошибка: " + (data.error || "серии не найдены") + "</span>";
+                        container.innerHTML = "<span class='error-msg'>Ошибка: " + (data.error || "неизвестная ошибка") + "</span>";
                     }
                 })
-                .catch(err => {
-                    // Если ошибка вызвана прокси PythonAnywhere
-                    if (err.message.includes("ProxyError") || err.message.includes("Tunnel connection failed")) {
-                        container.innerHTML = "<span class='error-msg'>Ошибка: Бесплатный тариф PythonAnywhere блокирует запросы к HDRezka. Нужен платный тариф или другой хостинг.</span>";
-                    } else {
-                        container.innerHTML = "<span class='error-msg'>Не удалось загрузить данные: " + err.message + "</span>";
-                    }
+                .catch(function(err) {
+                    container.innerHTML = "<span class='error-msg'>Ошибка сети или сервера. Возможно, Render еще просыпается. Попробуйте еще раз через 20 секунд.</span>";
+                    console.log(err);
                 });
         }
+        
         function playVideo(streamUrl) {
             const video = document.getElementById('player');
             const source = document.getElementById('videoSource');
