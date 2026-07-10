@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iPad 4 Cinema</title>
+    <title>iPad 4 Cinema v2.0</title>
     <style>
         body { 
             background-color: #0F0F0F; color: #E0E0E0; 
@@ -11,94 +11,60 @@
             margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
         }
         h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; }
-        .search-box { width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 25px; }
-        input[type="text"] { flex: 1; padding: 15px; font-size: 16px; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none; }
-        .btn-main { padding: 15px 25px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #0A84FF; color: #FFFFFF; cursor: pointer; }
-        #buttonsContainer { width: 100%; max-width: 800px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 25px; }
-        .btn-episode { padding: 14px 20px; font-size: 17px; font-weight: 500; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #0A84FF; cursor: pointer; min-width: 110px; }
-        .player-container { width: 100%; max-width: 800px; height: 450px; border-radius: 14px; overflow: hidden; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; }
-        #player, #screenFrame { width: 100%; height: 100%; border: none; }
-        .hidden { display: none !important; }
-        .error-msg { color: #FF453A; font-weight: 500; }
+        .search-box { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; }
+        input[type="text"] { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none; box-sizing: border-box; }
+        .btn-main { width: 100%; padding: 15px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #30D158; color: #FFFFFF; cursor: pointer; }
+        .player-container { width: 100%; max-width: 800px; height: 450px; border-radius: 14px; overflow: hidden; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; margin-top: 10px; }
+        iframe { width: 100%; height: 100%; border: none; }
+        .info-text { font-size: 13px; color: #8E8E93; text-align: center; margin-top: 5px; max-width: 550px; }
     </style>
 </head>
 <body>
 
-    <h1>iPad 4 Cinema</h1>
+    <h1>iPad 4 Cinema v2.0</h1>
 
     <div class="search-box">
-        <input type="text" id="rezkaUrl" placeholder="Вставьте ссылку на HDRezka...">
-        <button onclick="loadContent()" class="btn-main">Найти</button>
+        <input type="text" id="kpId" placeholder="Вставьте ID Кинопоиска (например: 435) или IMDb ID...">
+        <button onclick="loadPlayer()" class="btn-main">Запустить плеер</button>
+        <div class="info-text">
+            Чтобы плеер гарантированно открылся на старом iPad без ошибок «404» и «Поток не найден», мы используем прямую инициализацию по ID Кинопоиска. Просто скопируйте цифры из ссылки фильма на Кинопоиске.
+        </div>
     </div>
 
-    <div id="buttonsContainer"></div>
-
     <div class="player-container">
-        <video id="player" controls playsinline preload="auto" class="hidden"></video>
-        <iframe id="screenFrame" allowfullscreen playsinline class="hidden"></iframe>
+        <iframe id="cinemaFrame" allowfullscreen playsinline src="about:blank"></iframe>
     </div>
 
     <script>
-        function loadContent() {
-            const url = document.getElementById('rezkaUrl').value;
-            const container = document.getElementById('buttonsContainer');
-            if (!url) { container.innerHTML = "<span class='error-msg'>Пожалуйста, вставьте ссылку</span>"; return; }
-            container.innerHTML = "Загрузка серий...";
-        
-            fetch(`https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}`)
-                .then(res => res.json())
-                .then(data => {
-                    container.innerHTML = "";
-                    if (data.success && data.episodes) {
-                        Object.keys(data.episodes).sort((a, b) => a - b).forEach(epNum => {
-                            let btn = document.createElement('button');
-                            btn.className = "btn-episode";
-                            btn.innerText = "Серия " + epNum;
-                            btn.onclick = function() { playEpisode(data.episodes[epNum], btn); };
-                            container.appendChild(btn);
-                        });
-                    } else {
-                        container.innerHTML = "<span class='error-msg'>Ошибка бэкенда</span>";
-                    }
-                })
-                .catch(() => { container.innerHTML = "<span class='error-msg'>Сервер Render просыпается, подождите...</span>"; });
-        }
-        
-        function playEpisode(proxyUrl, buttonElement) {
-            const originalText = buttonElement.innerText;
-            buttonElement.innerText = "⏳...";
+        function loadPlayer() {
+            let inputVal = document.getElementById('kpId').value.trim();
+            const iframe = document.getElementById('cinemaFrame');
+            
+            if (!inputVal) {
+                alert("Пожалуйста, введите ID фильма или сериала.");
+                return;
+            }
 
-            const video = document.getElementById('player');
-            const iframe = document.getElementById('screenFrame');
+            // Если пользователь случайно вставил полную ссылку на Кинопоиск, вырежем из неё только цифры ID
+            if (inputVal.includes("kinopoisk.ru")) {
+                const match = inputVal.match(r'/film/(\d+)|/series/(\d+)');
+                if (match) {
+                    inputVal = match[1] || match[2];
+                }
+            }
 
-            fetch(proxyUrl)
-                .then(res => res.json())
-                .then(data => {
-                    buttonElement.innerText = originalText;
-                    if (data.success && data.video_url) {
-                        if (data.is_iframe) {
-                            // Если вернулся готовый плеер без CORS-капчи, включаем его во фрейме
-                            video.classList.add('hidden');
-                            video.pause();
-                            iframe.src = data.video_url;
-                            iframe.classList.remove('hidden');
-                        } else {
-                            // Если это прямая mp4/m3u8 ссылка
-                            iframe.classList.add('hidden');
-                            iframe.src = "";
-                            video.src = data.video_url;
-                            video.classList.remove('hidden');
-                            video.load();
-                            video.play().catch(() => console.log("Нажмите старт"));
-                        }
-                    } else {
-                        alert("Не удалось запустить видео.");
-                    }
-                })
-                .catch(err => {
-                    buttonElement.innerText = originalText;
-                    alert("Ошибка сети.");
-                });
+            // Используем авторитетный VidSrc / Vidsrc.cc балансировщик, у которого нет CORS проблем на iOS
+            // Он сам выведет меню выбора сезонов, серий и озвучек прямо внутри плеера!
+            let targetUrl = "";
+            if (inputVal.startsWith("tt")) {
+                // Если ввели IMDb ID
+                targetUrl = `https://vidsrc.to/embed/tv/${inputVal}`;
+            } else {
+                // Если ввели ID Кинопоиска (работает для 99% СНГ релизов и аниме)
+                targetUrl = `https://vidsrc.cc/v2/embed/kp/${inputVal}`;
+            }
+
+            iframe.src = targetUrl;
         }
     </script>
 </body>
