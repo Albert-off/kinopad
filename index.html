@@ -6,19 +6,13 @@
     <title>iPad 4 Cinema</title>
     <style>
         body { 
-            background-color: #0F0F0F; 
-            color: #E0E0E0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
+            background-color: #0F0F0F; color: #E0E0E0; 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
         }
         h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; }
         .search-box { width: 100%; max-width: 600px; display: flex; gap: 10px; margin-bottom: 25px; }
-        input[type="text"] { 
-            flex: 1; padding: 15px; font-size: 16px; border-radius: 10px; 
-            border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none;
-        }
-        input[type="text"]:focus { border-color: #0A84FF; }
+        input[type="text"] { flex: 1; padding: 15px; font-size: 16px; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none; }
         .btn-main { padding: 15px 25px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #0A84FF; color: #FFFFFF; cursor: pointer; }
         #buttonsContainer { width: 100%; max-width: 800px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 25px; }
         .btn-episode { padding: 14px 20px; font-size: 17px; font-weight: 500; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #0A84FF; cursor: pointer; min-width: 110px; }
@@ -51,7 +45,6 @@
                 container.innerHTML = "<span class='error-msg'>Пожалуйста, вставьте ссылку</span>";
                 return;
             }
-            
             container.innerHTML = "Загрузка серий...";
         
             const renderApiUrl = `https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
@@ -62,18 +55,11 @@
                     container.innerHTML = "";
                     if (data.success && data.episodes) {
                         const epNumbers = Object.keys(data.episodes).sort((a, b) => a - b);
-                        
-                        if (epNumbers.length === 0) {
-                            container.innerHTML = "<span class='error-msg'>Серии не найдены.</span>";
-                            return;
-                        }
-        
                         epNumbers.forEach(epNum => {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            // Передаем объект с ID прямо в функцию клика
-                            btn.onclick = function() { playEpisodeDirect(data.episodes[epNum], btn); };
+                            btn.onclick = function() { playEpisodeViaProxy(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
                     } else {
@@ -81,61 +67,33 @@
                     }
                 })
                 .catch(err => {
-                    container.innerHTML = "<span class='error-msg'>Ошибка сети. Сервер Render просыпается, подождите 20 секунд и нажмите Найти еще раз.</span>";
+                    container.innerHTML = "<span class='error-msg'>Ошибка сети. Сервер просыпается, повторите попытку через 20 сек.</span>";
                 });
         }
         
-        // КЛЮЧЕВАЯ ФУНКЦИЯ: Запрос делает сам iPad напрямую к Резке
-        function playEpisodeDirect(epData, buttonElement) {
+        function playEpisodeViaProxy(proxyUrl, buttonElement) {
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
-            
-            // Создаем правильные POST параметры, которые требует Резка
-            const formData = new FormData();
-            formData.append('id', epData.id);
-            formData.append('season', epData.season);
-            formData.append('episode', epData.episode);
-            formData.append('translator_id', epData.translator_id);
-            formData.append('action', 'get_stream');
 
-            // Отправляем запрос прямо с iPad
-            fetch("https://hdrezka.me/engine/ajax/get_cdn_series.php", {
-                method: "POST",
-                body: formData
-            })
+            fetch(proxyUrl)
             .then(res => res.json())
             .then(data => {
                 buttonElement.innerText = originalText;
-                if (data.success && data.url) {
-                    // Извлекаем mp4 ссылки из строки донора
-                    const streamsStr = data.url;
-                    const urls = streamsStr.match(/https?:\/\/[^\s,\s]+(?:\.mp4|\.m3u8)[^\s]*/g);
+                if (data.success && data.video_url) {
+                    const video = document.getElementById('player');
+                    const source = document.getElementById('videoSource');
                     
-                    if (urls) {
-                        // Берем последнюю ссылку (лучшее качество) и убираем лишнее
-                        let finalUrl = urls[urls.length - 1].split(' or ')[0].trim();
-                        // Если ссылка начинается на http://, меняем на https://
-                        if (finalUrl.startsWith("http://")) {
-                            finalUrl = finalUrl.replace("http://", "https://");
-                        }
-
-                        const video = document.getElementById('player');
-                        const source = document.getElementById('videoSource');
-                        
-                        source.src = finalUrl;
-                        video.load(); 
-                        video.play().catch(e => console.log("Нажмите Play вручную")); 
-                    } else {
-                        alert("Не удалось извлечь видео-файл из ответа.");
-                    }
+                    source.src = data.video_url;
+                    video.load(); 
+                    video.play().catch(e => console.log("Нажмите Play вручную")); 
                 } else {
-                    alert("Резка отклонила запрос. Попробуйте обновить страницу.");
+                    alert("Ошибка: " + (data.error || "Не удалось получить видео"));
                 }
             })
             .catch(err => {
                 buttonElement.innerText = originalText;
                 console.error(err);
-                alert("Ошибка сети. Убедитесь, что зеркало hdrezka.me доступно в вашем браузере.");
+                alert("Ошибка соединения с сервером Render.");
             });
         }
     </script>
