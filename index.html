@@ -142,13 +142,12 @@
             
             container.innerHTML = "Загрузка серий роботом...";
 
-            // Полностью восстановленный рабочий URL вашего бэкенда на PythonAnywhere
+            // ВОТ ТАК пишется правильно: с вашим доменом, знаком '?' и знаком '$'
             fetch(`https://albertaudley.pythonanywhere.com/?url=${encodeURIComponent(url)}&season=1`)
                 .then(res => res.json())
                 .then(data => {
                     container.innerHTML = "";
-                    if(data.success && Object.keys(data.episodes).length > 0) {
-                        // Сортируем ключи по числовому порядку серий
+                    if(data.success && data.episodes && Object.keys(data.episodes).length > 0) {
                         Object.keys(data.episodes).sort((a, b) => a - b).forEach(epNum => {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
@@ -170,8 +169,12 @@
             const source = document.getElementById('videoSource');
             
             source.src = streamUrl;
-            video.load(); // Перезагружаем плеер под новую ссылку
-            video.play(); // Запуск!
+            video.load(); 
+            
+            // На старых iPad автоплей может блокироваться, обернем в catch, чтобы не ломать скрипт
+            video.play().catch(e => {
+                console.log("Автозапуск заблокирован, нажмите Play на плеере вручную");
+            }); 
         }
     </script>
 </body>
