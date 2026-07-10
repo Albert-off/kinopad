@@ -39,13 +39,13 @@
         function loadPlayer() {
             let inputVal = document.getElementById('kpId').value.trim();
             const iframe = document.getElementById('cinemaFrame');
-            
+                        
             if (!inputVal) {
                 alert("Пожалуйста, введите ID фильма или сериала.");
                 return;
             }
 
-            // ИСПРАВЛЕНО: Чистый JS синтаксис для регулярных выражений, без лишней буквы "r"
+            // ИСПРАВЛЕНО: Правильный JavaScript синтаксис регулярного выражения для поиска ID
             if (inputVal.includes("kinopoisk.ru")) {
                 const match = inputVal.match(/\/film\/(\d+)|\/series\/(\d+)/);
                 if (match) {
@@ -55,9 +55,9 @@
 
             let targetUrl = "";
             if (inputVal.startsWith("tt")) {
-                targetUrl = `https://vidsrc.to/embed/tv/${inputVal}`;
+                targetUrl = "https://vidsrc.to/embed/tv/" + inputVal;
             } else {
-                targetUrl = `https://vidsrc.cc/v2/embed/kp/${inputVal}`;
+                targetUrl = "https://vidsrc.cc/v2/embed/kp/" + inputVal;
             }
 
             iframe.src = targetUrl;
