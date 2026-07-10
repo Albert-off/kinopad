@@ -126,7 +126,7 @@
     <div id="buttonsContainer"></div>
 
     <video id="player" controls playsinline preload="none">
-        <source id="videoSource" src="" type="application/x-mpegURL">
+        <source id="videoSource" src="" type="video/mp4">
         Ваш iPad не поддерживает это видео.
     </video>
 
@@ -142,9 +142,8 @@
             
             container.innerHTML = "Загрузка серий роботом (Render может просыпаться до 30-50 сек)...";
         
-            // ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ССЫЛКУ ИЗ RENDER!
             const renderApiUrl = `https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
-    
+        
             fetch(renderApiUrl)
                 .then(function(res) {
                     return res.json();
@@ -159,12 +158,13 @@
                             container.innerHTML = "<span class='error-msg'>Серии не найдены.</span>";
                             return;
                         }
-    
+        
                         epNumbers.forEach(function(epNum) {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            btn.onclick = function() { playVideo(data.episodes[epNum]); };
+                            // ИСПРАВЛЕНО: Теперь вызывается playEpisode, которая сделает запрос к нашему API за mp4 ссылкой
+                            btn.onclick = function() { playEpisode(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
                     } else {
@@ -177,17 +177,38 @@
                 });
         }
         
-        function playVideo(streamUrl) {
-            const video = document.getElementById('player');
-            const source = document.getElementById('videoSource');
-            
-            source.src = streamUrl;
-            video.load(); 
-            
-            // На старых iPad автоплей может блокироваться, обернем в catch, чтобы не ломать скрипт
-            video.play().catch(e => {
-                console.log("Автозапуск заблокирован, нажмите Play на плеере вручную");
-            }); 
+        // ИСПРАВЛЕНО: Функция запрашивает у Render прямую ссылку и скармливает её плееру
+        function playEpisode(proxyUrl, buttonElement) {
+            const originalText = buttonElement.innerText;
+            buttonElement.innerText = "⏳...";
+            buttonElement.style.disabled = true;
+
+            fetch(proxyUrl)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    buttonElement.innerText = originalText;
+                    buttonElement.style.disabled = false;
+
+                    if (data.success && data.video_url) {
+                        const video = document.getElementById('player');
+                        const source = document.getElementById('videoSource');
+                        
+                        source.src = data.video_url;
+                        video.load(); 
+                        
+                        video.play().catch(function(e) {
+                            console.log("Автозапуск заблокирован, нажмите Play вручную");
+                        }); 
+                    } else {
+                        alert("Ошибка получения видео: " + (data.error || "Неизвестная ошибка донора"));
+                    }
+                })
+                .catch(function(err) {
+                    buttonElement.innerText = originalText;
+                    buttonElement.style.disabled = false;
+                    console.error("Ошибка:", err);
+                    alert("Ошибка сети при получении видеопотока");
+                });
         }
     </script>
 </body>
