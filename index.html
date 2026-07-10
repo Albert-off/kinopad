@@ -59,7 +59,8 @@
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            btn.onclick = function() { playEpisodeDirectly(data.episodes[epNum], btn); };
+                            // Теперь бэкенд возвращает в ep готовую ссылку на проксирование, передаем её напрямую
+                            btn.onclick = function() { playEpisode(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
                     } else {
@@ -71,59 +72,31 @@
                 });
         }
         
-        function playEpisodeDirectly(ep, buttonElement) {
+        function playEpisode(proxyUrl, buttonElement) {
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
 
-            // Готовим параметры
-            const urlParams = new URLSearchParams();
-            urlParams.append('id', ep.id);
-            urlParams.append('season', ep.season);
-            urlParams.append('episode', ep.episode);
-            urlParams.append('translator_id', ep.translator_id);
-            urlParams.append('action', 'get_stream');
-
-            // НОВЫЙ ПРОКСИ: Работает без активаций и кнопок напрямую
-            const corsProxy = "https://api.allorigins.win/raw?url=";
-            const targetUrl = encodeURIComponent(`${ep.domain}/engine/ajax/get_cdn_series.php`);
-
-            fetch(corsProxy + targetUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-                },
-                body: urlParams.toString()
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Ошибка ответа прокси');
-                return res.text();
-            })
-            .then(textData => {
-                buttonElement.innerText = originalText;
-                
-                // Вытаскиваем mp4/m3u8 из ответа
-                const urls = textData.match(/https?:\/\/[^\s,\s"]+(?:\.mp4|\.m3u8)[^\s"]*/g);
-                if (urls) {
-                    let finalVideoUrl = urls[urls.length - 1].split(' or ')[0].replace(/\\/g, '').trim();
-                    if (finalVideoUrl.startsWith("http://")) {
-                        finalVideoUrl = finalVideoUrl.replace("http://", "https://");
+            // Делаем простой запрос к нашему серверу Render (замаскированному под iPhone)
+            fetch(proxyUrl)
+                .then(res => res.json())
+                .then(data => {
+                    buttonElement.innerText = originalText;
+                    if (data.success && data.video_url) {
+                        const video = document.getElementById('player');
+                        const source = document.getElementById('videoSource');
+                        
+                        source.src = data.video_url;
+                        video.load(); 
+                        video.play().catch(e => console.log("Нажмите Play вручную"));
+                    } else {
+                        alert("Ошибка: " + (data.error || "Не удалось получить видео"));
                     }
-
-                    const video = document.getElementById('player');
-                    const source = document.getElementById('videoSource');
-                    
-                    source.src = finalVideoUrl;
-                    video.load(); 
-                    video.play().catch(e => console.log("Нажмите Play вручную"));
-                } else {
-                    alert("Резка заблокировала этот прокси. Попробуйте вставить ссылку с другого зеркала (например, rezka.ag вместо rezka-tv.org).");
-                }
-            })
-            .catch(err => {
-                buttonElement.innerText = originalText;
-                console.error(err);
-                alert("Ошибка соединения с CORS-прокси.");
-            });
+                })
+                .catch(err => {
+                    buttonElement.innerText = originalText;
+                    console.error(err);
+                    alert("Ошибка соединения с сервером Render.");
+                });
         }
     </script>
 </body>
