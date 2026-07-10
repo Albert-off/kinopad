@@ -59,7 +59,7 @@
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
-                            btn.onclick = function() { playEpisodeViaProxy(data.episodes[epNum], btn); };
+                            btn.onclick = function() { playEpisodeDirectly(data.episodes[epNum], btn); };
                             container.appendChild(btn);
                         });
                     } else {
@@ -71,30 +71,64 @@
                 });
         }
         
-        function playEpisodeViaProxy(proxyUrl, buttonElement) {
+        function playEpisodeDirectly(ep, buttonElement) {
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
 
-            fetch(proxyUrl)
-            .then(res => res.json())
-            .then(data => {
+            // Строим параметры для отправки донору
+            const urlParams = new URLSearchParams();
+            urlParams.append('id', ep.id);
+            urlParams.append('season', ep.season);
+            urlParams.append('episode', ep.episode);
+            urlParams.append('translator_id', ep.translator_id);
+            urlParams.append('action', 'get_stream');
+
+            // Используем публичный CORS-прокси для обхода ограничений браузера
+            const corsProxy = "https://cors-anywhere.herokuapp.com/";
+            const targetUrl = `${ep.domain}/engine/ajax/get_cdn_series.php`;
+
+            fetch(corsProxy + targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: urlParams.toString()
+            })
+            .then(res => res.text()) // Читаем как текст, чтобы избежать сбоев парсинга
+            .then(textData => {
                 buttonElement.innerText = originalText;
-                if (data.success && data.video_url) {
+                
+                // Ищем видео-ссылки в тексте
+                const urls = textData.match(/https?:\/\/[^\s,\s"]+(?:\.mp4|\.m3u8)[^\s"]*/g);
+                if (urls) {
+                    let finalVideoUrl = urls[urls.length - 1].split(' or ')[0].replace(/\\/g, '').strip();
+                    if (finalVideoUrl.startsWith("http://")) {
+                        finalVideoUrl = finalVideoUrl.replace("http://", "https://");
+                    }
+
                     const video = document.getElementById('player');
                     const source = document.getElementById('videoSource');
                     
-                    source.src = data.video_url;
+                    source.src = finalVideoUrl;
                     video.load(); 
-                    video.play().catch(e => console.log("Нажмите Play вручную")); 
+                    video.play().catch(e => console.log("Нажмите Play вручную"));
                 } else {
-                    alert("Ошибка: " + (data.error || "Не удалось получить видео"));
+                    alert("Видео-поток не найден. Попробуйте сменить зеркало Резки.");
                 }
             })
             .catch(err => {
                 buttonElement.innerText = originalText;
                 console.error(err);
-                alert("Ошибка соединения с сервером Render.");
+                alert("Ошибка CORS-прокси. Проверьте соединение.");
             });
+        }
+
+        // Небольшой хелпер для очистки строк в старых браузерах
+        if (!String.prototype.strip) {
+            String.prototype.strip = function() {
+                return this.replace(/^\s+|\s+$/g, '');
+            };
         }
     </script>
 </body>
