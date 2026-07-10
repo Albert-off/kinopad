@@ -143,7 +143,7 @@
             container.innerHTML = "Загрузка серий роботом (Render может просыпаться до 30-50 сек)...";
         
             // ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ССЫЛКУ ИЗ RENDER!
-            const renderApiUrl = `https://твой-сервис-на-render.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
+            const renderApiUrl = `https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
     
             fetch(renderApiUrl)
                 .then(function(res) {
