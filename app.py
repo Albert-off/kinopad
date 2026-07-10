@@ -13,6 +13,28 @@ def fix_url(url):
         return url.replace("http://", "https://", 1)
     return url
 
+@app.route('/', methods=['GET'])
+def home():
+    return """
+    <html>
+        <head>
+            <title>Kinopad API</title>
+            <style>
+                body { font-family: sans-serif; text-align: center; padding-top: 100px; background-color: #f4f4f9; color: #333; }
+                .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                h1 { color: #2ecc71; margin-bottom: 10px; }
+                p { color: #7f8c8d; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✓ Kinopad API Работает!</h1>
+                <p>Ваш личный сервер-прослойка для iPad 4 успешно запущен.</p>
+            </div>
+        </body>
+    </html>
+    """
+
 @app.route('/get_episodes', methods=['GET'])
 def get_episodes():
     rezka_url = request.args.get('url')
