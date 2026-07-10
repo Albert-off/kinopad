@@ -16,7 +16,9 @@
         .btn-main { padding: 15px 25px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #0A84FF; color: #FFFFFF; cursor: pointer; }
         #buttonsContainer { width: 100%; max-width: 800px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 25px; }
         .btn-episode { padding: 14px 20px; font-size: 17px; font-weight: 500; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #0A84FF; cursor: pointer; min-width: 110px; }
-        #player { width: 100%; max-width: 800px; border-radius: 14px; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; }
+        .player-container { width: 100%; max-width: 800px; height: 450px; border-radius: 14px; overflow: hidden; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; }
+        #player, #screenFrame { width: 100%; height: 100%; border: none; }
+        .hidden { display: none !important; }
         .error-msg { color: #FF453A; font-weight: 500; }
     </style>
 </head>
@@ -31,30 +33,24 @@
 
     <div id="buttonsContainer"></div>
 
-    <video id="player" controls playsinline preload="auto">
-        Ваш iPad не поддерживает это видео.
-    </video>
+    <div class="player-container">
+        <video id="player" controls playsinline preload="auto" class="hidden"></video>
+        <iframe id="screenFrame" allowfullscreen playsinline class="hidden"></iframe>
+    </div>
 
     <script>
         function loadContent() {
             const url = document.getElementById('rezkaUrl').value;
             const container = document.getElementById('buttonsContainer');
-            
-            if (!url) {
-                container.innerHTML = "<span class='error-msg'>Пожалуйста, вставьте ссылку</span>";
-                return;
-            }
+            if (!url) { container.innerHTML = "<span class='error-msg'>Пожалуйста, вставьте ссылку</span>"; return; }
             container.innerHTML = "Загрузка серий...";
         
-            const renderApiUrl = `https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}&season=1`;
-        
-            fetch(renderApiUrl)
+            fetch(`https://kinopad.onrender.com/get_episodes?url=${encodeURIComponent(url)}`)
                 .then(res => res.json())
                 .then(data => {
                     container.innerHTML = "";
                     if (data.success && data.episodes) {
-                        const epNumbers = Object.keys(data.episodes).sort((a, b) => a - b);
-                        epNumbers.forEach(epNum => {
+                        Object.keys(data.episodes).sort((a, b) => a - b).forEach(epNum => {
                             let btn = document.createElement('button');
                             btn.className = "btn-episode";
                             btn.innerText = "Серия " + epNum;
@@ -62,41 +58,46 @@
                             container.appendChild(btn);
                         });
                     } else {
-                        container.innerHTML = "<span class='error-msg'>Ошибка: " + (data.error || "неизвестная ошибка") + "</span>";
+                        container.innerHTML = "<span class='error-msg'>Ошибка бэкенда</span>";
                     }
                 })
-                .catch(err => {
-                    container.innerHTML = "<span class='error-msg'>Ошибка сети. Сервер просыпается, повторите попытку через 20 сек.</span>";
-                });
+                .catch(() => { container.innerHTML = "<span class='error-msg'>Сервер Render просыпается, подождите...</span>"; });
         }
         
         function playEpisode(proxyUrl, buttonElement) {
             const originalText = buttonElement.innerText;
             buttonElement.innerText = "⏳...";
 
+            const video = document.getElementById('player');
+            const iframe = document.getElementById('screenFrame');
+
             fetch(proxyUrl)
                 .then(res => res.json())
                 .then(data => {
                     buttonElement.innerText = originalText;
                     if (data.success && data.video_url) {
-                        const video = document.getElementById('player');
-                        
-                        // Меняем src напрямую у видео-тега, это заставляет iOS плееры переключаться на HLS стриминг
-                        video.src = data.video_url;
-                        video.load(); 
-                        
-                        // Пытаемся запустить. Если iOS блокирует автоплей, юзер просто нажмет на большой белый треугольник плеера
-                        video.play().catch(e => {
-                            console.log("Нажмите на кнопку плеера вручную для старта.");
-                        }); 
+                        if (data.is_iframe) {
+                            // Если вернулся готовый плеер без CORS-капчи, включаем его во фрейме
+                            video.classList.add('hidden');
+                            video.pause();
+                            iframe.src = data.video_url;
+                            iframe.classList.remove('hidden');
+                        } else {
+                            // Если это прямая mp4/m3u8 ссылка
+                            iframe.classList.add('hidden');
+                            iframe.src = "";
+                            video.src = data.video_url;
+                            video.classList.remove('hidden');
+                            video.load();
+                            video.play().catch(() => console.log("Нажмите старт"));
+                        }
                     } else {
-                        alert("Ошибка: " + (data.error || "Не удалось получить видео"));
+                        alert("Не удалось запустить видео.");
                     }
                 })
                 .catch(err => {
                     buttonElement.innerText = originalText;
-                    console.error(err);
-                    alert("Ошибка соединения с сервером Render.");
+                    alert("Ошибка сети.");
                 });
         }
     </script>
