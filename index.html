@@ -22,7 +22,7 @@
         /* Группировка сериалов */
         .show-section { margin-bottom: 25px; background: #181818; padding: 15px; border-radius: 8px; }
         .show-title { font-size: 20px; color: #FF9500; margin: 0 0 10px 0; border-bottom: 1px solid #282828; padding-bottom: 5px; }
-        .season-title { font-size: 16px; color: #AEAEB2; margin: 10px 0 5px 0; font-weight: bold; }
+        .season-title { font-size: 16px; color: #AEAEB2; margin: 10px 0 8px 0; font-weight: bold; }
         
         /* Строка эпизода */
         .episode-row { 
@@ -30,14 +30,37 @@
             align-items: center; 
             justify-content: space-between; 
             background: #242426; 
-            padding: 10px 12px; 
-            margin: 6px 0; 
+            padding: 12px; 
+            margin: 8px 0; 
             border-radius: 6px;
         }
-        .episode-info { font-size: 16px; font-weight: 500; color: #FFFFFF; }
         
-        /* Кнопки управления (крупные для удобного нажатия пальцем на iPad) */
-        .btn-group { display: flex; }
+        /* Текстовый блок (серия + ссылка) */
+        .episode-text-block {
+            display: flex;
+            flex-direction: column;
+            padding-right: 10px;
+            flex: 1; /* Занимает всё свободное пространство слева */
+        }
+        .episode-info { 
+            font-size: 16px; 
+            font-weight: 500; 
+            color: #FFFFFF; 
+            margin-bottom: 4px; 
+        }
+        .episode-link-preview {
+            font-size: 12px;
+            color: #8E8E93;
+            word-break: break-all; /* Спасает от вылезания длинных ссылок на iPad */
+            line-height: 1.3;
+        }
+        
+        /* Кнопки управления */
+        .btn-group { 
+            display: flex; 
+            align-items: center; 
+            flex-shrink: 0; /* Не сжимает кнопки, как бы много текста ни было слева */
+        }
         .btn { 
             background-color: #007AFF; 
             color: white; 
@@ -63,11 +86,9 @@
     </div>
 
 <script>
-    // ⚠️ ВАЖНО: Замените эту ссылку на ваш адрес на PythonAnywhere!
     var API_URL = "https://albertaudley.pythonanywhere.com/get_episodes";
 
     function loadData() {
-        // Используем старый XMLHttpRequest вместо fetch для поддержки iOS 10
         var xhr = new XMLHttpRequest();
         xhr.open("GET", API_URL, true);
         xhr.onreadystatechange = function () {
@@ -99,9 +120,9 @@
 
             // Разделение по Сериалам
             if (currentShow !== ep.show_name) {
-                if (currentShow !== "") { html += "</div>"; } // закрываем старую секцию
+                if (currentShow !== "") { html += "</div>"; } 
                 currentShow = ep.show_name;
-                currentSeason = ""; // Сбрасываем сезон для нового сериала
+                currentSeason = ""; 
                 html += "<div class='show-section'><h2 class='show-title'>" + currentShow + "</h2>";
             }
 
@@ -111,11 +132,13 @@
                 html += "<div class='season-title'>" + currentSeason + "</div>";
             }
 
-            // Верстка самого эпизода
+            // Верстка самого эпизода с новым блоком для красивого вывода ссылки
             html += "<div class='episode-row'>" +
-                        "<div class='episode-info'>" + ep.episode_number + "</div>" +
+                        "<div class='episode-text-block'>" +
+                            "<div class='episode-info'>" + ep.episode_number + "</div>" +
+                            "<div class='episode-link-preview'>" + ep.link + "</div>" +
+                        "</div>" +
                         "<div class='btn-group'>" +
-                            // Экранируем ссылку для передачи в JS
                             "<button class='btn btn-copy' onclick='copyLink(\"" + ep.link + "\")'>Копировать</button>" +
                             "<a class='btn' href='" + ep.link + "' target='_blank'>Открыть</a>" +
                         "</div>" +
@@ -126,11 +149,10 @@
         contentDiv.innerHTML = html;
     }
 
-    // Функция копирования ссылок (работает в старых iOS через создание временного textarea)
     window.copyLink = function(url) {
         var textarea = document.createElement("textarea");
         textarea.value = url;
-        textarea.style.position = "fixed";  // чтобы не дергался экран
+        textarea.style.position = "fixed";  
         document.body.appendChild(textarea);
         textarea.select();
         try {
@@ -142,7 +164,6 @@
         document.body.removeChild(textarea);
     };
 
-    // Запуск загрузки при открытии страницы
     loadData();
 </script>
 
