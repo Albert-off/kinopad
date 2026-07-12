@@ -36,11 +36,63 @@
 
         h2 { margin-top: 0; color: #FFF; font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
         
-        /* Форма */
-        .sticky-form { position: sticky; top: 20px; background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid var(--border); height: fit-content; }
+        /* Форма (Адаптивная адаптация под мобилки) */
+        .sticky-form { 
+            position: sticky; 
+            top: 20px; 
+            background: var(--card); 
+            padding: 20px; 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            height: fit-content; 
+            z-index: 100;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: 1px solid var(--border); background: #242428; color: #fff; font-size: 16px; box-sizing: border-box; }
         button { background: var(--accent); font-weight: 600; border: none; cursor: pointer; }
         button:active { opacity: 0.8; }
+        
+        /* Кнопка триггера формы для мобильных устройств */
+        .mobile-form-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-size: 24px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 122, 255, 0.4);
+            z-index: 101;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Стили для мобильных экранов */
+        @media(max-width: 767px) {
+            .mobile-form-toggle { display: flex; }
+            .sticky-form {
+                position: fixed;
+                bottom: 90px;
+                right: 20px;
+                left: 20px;
+                top: auto;
+                transform: translateY(150%);
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+            }
+            .sticky-form.active {
+                transform: translateY(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
         
         /* Визуальные группы */
         .show-group { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
@@ -58,17 +110,38 @@
         .ep-title { font-weight: 600; color: #FFF; font-size: 16px; }
         .ep-meta { font-size: 13px; color: #8E8E93; margin: 4px 0 10px 0; word-break: break-all; }
         
-        .actions { display: flex; gap: 8px; }
-        .btn-sm { padding: 6px 12px; font-size: 13px; margin: 0; width: auto; flex: 1; }
+        .actions { display: flex; gap: 8px; align-items: center; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; margin: 0; width: auto; flex: 1; height: 34px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
         .edit-btn { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent); }
         .del-btn { background: rgba(255, 59, 48, 0.1); color: var(--danger); border: 1px solid var(--danger); }
+        
+        /* Кнопка "Открыть в новой вкладке" */
+        .open-btn { 
+            background: rgba(255, 255, 255, 0.05); 
+            color: #E5E5EA; 
+            border: 1px solid var(--border); 
+            border-radius: 10px;
+            text-decoration: none;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .open-btn:hover { background: rgba(255, 255, 255, 0.1); }
     </style>
 </head>
 <body>
 
+    <!-- Переключатель формы для мобилок -->
+    <button class="mobile-form-toggle" id="mobileFormToggle" onclick="toggleMobileForm()">✍️</button>
+
     <div class="container">
         <!-- Левая панель: Форма добавления/изменения -->
-        <div class="sticky-form">
+        <div class="sticky-form" id="formBlock">
             <h2 id="formTitle">Добавить серию</h2>
             <form id="episodeForm">
                 <input type="hidden" id="edit_id">
@@ -96,6 +169,21 @@
         
         // Хранилище загруженных данных в памяти для быстрого редактирования
         let localEpisodes = []; 
+
+        // Переключение видимости формы на мобильных устройствах
+        function toggleMobileForm() {
+            const formBlock = document.getElementById('formBlock');
+            const toggleBtn = document.getElementById('mobileFormToggle');
+            formBlock.classList.toggle('active');
+            
+            if(formBlock.classList.contains('active')) {
+                toggleBtn.innerText = "❌";
+                toggleBtn.style.background = "var(--danger)";
+            } else {
+                toggleBtn.innerText = "✍️";
+                toggleBtn.style.background = "var(--accent)";
+            }
+        }
 
         async function loadData() {
             try {
@@ -142,6 +230,7 @@
                                 <div class="actions">
                                     <button class="btn-sm edit-btn" onclick="startEdit(${ep.id})">Изменить</button>
                                     <button class="btn-sm del-btn" onclick="deleteEp(${ep.id})">Удалить</button>
+                                    <a class="open-btn" href="${ep.link}" target="_blank" title="Открыть в новой вкладке">↗</a>
                                 </div>
                             </div>`;
                     });
@@ -167,8 +256,6 @@
                 position: parseInt(document.getElementById('position').value) || 0
             };
 
-            // Если мы редактируем запись, а сервер не поддерживает INSERT OR REPLACE:
-            // Сначала удаляем старую запись, затем добавляем измененную. 
             if (editId) {
                 await fetch(`${API_BASE}/delete_episode`, {
                     method: 'POST',
@@ -187,6 +274,10 @@
             if (result.status === 'ok') {
                 resetForm();
                 loadData();
+                // Закрываем форму на мобилке после успешного сохранения
+                if(document.getElementById('formBlock').classList.contains('active')) {
+                    toggleMobileForm();
+                }
             } else {
                 alert('Ошибка авторизации или сервера');
             }
@@ -207,7 +298,14 @@
             document.getElementById('formTitle').innerText = "Изменить серию";
             document.getElementById('submitBtn').innerText = "Применить изменения";
             document.getElementById('cancelEditBtn').style.display = "block";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Если на мобилке — открываем форму автоматически при редактировании
+            const formBlock = document.getElementById('formBlock');
+            if (window.innerWidth < 768 && !formBlock.classList.contains('active')) {
+                toggleMobileForm();
+            } else if (window.innerWidth >= 768) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         };
 
         function resetForm() {
