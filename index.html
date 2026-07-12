@@ -6,76 +6,124 @@
     <title>KINOPAD</title>
     <style>
         body { 
-            background-color: #0F0F0F; 
-            color: #E0E0E0; 
+            background-color: #0A0A0C; 
+            color: #E5E5EA; 
             font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
             margin: 0; 
-            padding: 20px; 
+            padding: 24px 16px; 
             display: flex; 
             flex-direction: column; 
             align-items: center;
         }
-        h1 { font-size: 26px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; text-transform: uppercase; }
         
+        h1 { 
+            font-size: 28px; 
+            font-weight: 700; 
+            margin-bottom: 28px; 
+            color: #FFFFFF; 
+            text-transform: uppercase; 
+            letter-spacing: 2px;
+        }
+        
+        /* Максимальная ширина контейнера 1280px */
         .container { width: 100%; max-width: 1280px; }
         
-        /* Группировка сериалов */
-        .show-section { margin-bottom: 25px; background: #181818; padding: 15px; border-radius: 8px; }
-        .show-title { font-size: 20px; color: #FF9500; margin: 0 0 10px 0; border-bottom: 1px solid #282828; padding-bottom: 5px; }
-        .season-title { font-size: 16px; color: #AEAEB2; margin: 10px 0 8px 0; font-weight: bold; }
+        /* Группировка сериалов (Современная темная карточка с тенью) */
+        .show-section { 
+            margin-bottom: 32px; 
+            background: #1C1C1E; 
+            padding: 20px; 
+            border-radius: 14px; 
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            border: 1px solid #2C2C2E;
+        }
         
-        /* Строка эпизода */
+        .show-title { 
+            font-size: 22px; 
+            font-weight: 700;
+            color: #FF9500; 
+            margin: 0 0 14px 0; 
+            border-bottom: 1px solid #2C2C2E; 
+            padding-bottom: 8px; 
+        }
+        
+        .season-title { 
+            font-size: 15px; 
+            color: #0A84FF; 
+            margin: 18px 0 8px 0; 
+            font-weight: 700; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Строка эпизода (Более контрастный фон и увеличенные отступы) */
         .episode-row { 
             display: flex; 
             align-items: center; 
             justify-content: space-between; 
-            background: #242426; 
-            padding: 12px; 
-            margin: 8px 0; 
-            border-radius: 6px;
+            background: #2C2C2E; 
+            padding: 14px 16px; 
+            margin: 10px 0; 
+            border-radius: 10px;
+            border: 1px solid #3A3A3C;
         }
         
         /* Текстовый блок (серия + ссылка) */
         .episode-text-block {
             display: flex;
             flex-direction: column;
-            padding-right: 10px;
-            flex: 1; /* Занимает всё свободное пространство слева */
-        }
-        .episode-info { 
-            font-size: 16px; 
-            font-weight: 500; 
-            color: #FFFFFF; 
-            margin-bottom: 4px; 
-        }
-        .episode-link-preview {
-            font-size: 12px;
-            color: #8E8E93;
-            word-break: break-all; /* Спасает от вылезания длинных ссылок на iPad */
-            line-height: 1.3;
+            padding-right: 16px;
+            flex: 1;
         }
         
-        /* Кнопки управления */
+        .episode-info { 
+            font-size: 17px; 
+            font-weight: 600; 
+            color: #FFFFFF; 
+            margin-bottom: 6px; 
+        }
+        
+        .episode-link-preview {
+            font-size: 12px;
+            color: #AEAEB2;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        
+        /* Кнопки управления (Абсолютный натив под iOS с полужирным шрифтом) */
         .btn-group { 
             display: flex; 
             align-items: center; 
-            flex-shrink: 0; /* Не сжимает кнопки, как бы много текста ни было слева */
+            flex-shrink: 0; 
         }
+        
         .btn { 
-            background-color: #007AFF; 
-            color: white; 
+            background-color: #0A84FF; 
+            color: #FFFFFF; 
             border: none; 
-            padding: 10px 14px; 
-            margin-left: 8px; 
-            border-radius: 6px; 
+            padding: 12px 18px; 
+            margin-left: 10px; 
+            border-radius: 8px; 
             font-size: 14px; 
+            font-weight: 600; /* Полужирный текст кнопок */
             cursor: pointer;
             text-decoration: none;
-            -webkit-appearance: none; /* Убирает дефолтные стили Safari */
+            -webkit-appearance: none; 
+            transition: background-color 0.2s;
         }
-        .btn-copy { background-color: #34C759; }
         
-        .loading { color: #8E8E93; font-size: 16px; margin-top: 20px; }
+        /* Современные приглушенные оттенки для темной темы */
+        .btn-copy { 
+            background-color: #30D158; 
+            color: #FFFFFF;
+        }
+        
+        .loading { 
+            color: #8E8E93; 
+            font-size: 16px; 
+            margin-top: 30px; 
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -132,15 +180,15 @@
                 html += "<div class='season-title'>" + currentSeason + "</div>";
             }
 
-            // Верстка самого эпизода с новым блоком для красивого вывода ссылки
+            // Изменен текст кнопок на Copy и Open
             html += "<div class='episode-row'>" +
                         "<div class='episode-text-block'>" +
                             "<div class='episode-info'>" + ep.episode_number + "</div>" +
                             "<div class='episode-link-preview'>" + ep.link + "</div>" +
                         "</div>" +
                         "<div class='btn-group'>" +
-                            "<button class='btn btn-copy' onclick='copyLink(\"" + ep.link + "\")'>Копировать</button>" +
-                            "<a class='btn' href='" + ep.link + "' target='_blank'>Открыть</a>" +
+                            "<button class='btn btn-copy' onclick='copyLink(\"" + ep.link + "\")'>Copy</button>" +
+                            "<a class='btn' href='" + ep.link + "' target='_blank'>Open</a>" +
                         "</div>" +
                     "</div>";
         }
