@@ -3,65 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iPad 4 Cinema v2.0</title>
+    <title>Kinopad</title>
     <style>
         body { 
-            background-color: #0F0F0F; color: #E0E0E0; 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+            background-color: #0F0F0F; 
+            color: #E0E0E0; 
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
         }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; }
-        .search-box { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; }
-        input[type="text"] { width: 100%; padding: 15px; font-size: 16px; border-radius: 10px; border: 1px solid #2C2C2E; background-color: #1C1C1E; color: #FFFFFF; outline: none; box-sizing: border-box; }
-        .btn-main { width: 100%; padding: 15px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #30D158; color: #FFFFFF; cursor: pointer; }
-        .player-container { width: 100%; max-width: 800px; height: 450px; border-radius: 14px; overflow: hidden; background-color: #000000; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.7); border: 1px solid #1C1C1E; margin-top: 10px; }
-        iframe { width: 100%; height: 100%; border: none; }
-        .info-text { font-size: 13px; color: #8E8E93; text-align: center; margin-top: 5px; max-width: 550px; }
+        h1 { font-size: 26px; font-weight: 600; margin-bottom: 20px; color: #FFFFFF; }
+        
+        .container { width: 100%; max-width: 600px; }
+        
+        /* Группировка сериалов */
+        .show-section { margin-bottom: 25px; background: #181818; padding: 15px; border-radius: 8px; }
+        .show-title { font-size: 20px; color: #FF9500; margin: 0 0 10px 0; border-bottom: 1px solid #282828; padding-bottom: 5px; }
+        .season-title { font-size: 16px; color: #AEAEB2; margin: 10px 0 5px 0; font-weight: bold; }
+        
+        /* Строка эпизода */
+        .episode-row { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            background: #242426; 
+            padding: 10px 12px; 
+            margin: 6px 0; 
+            border-radius: 6px;
+        }
+        .episode-info { font-size: 16px; font-weight: 500; color: #FFFFFF; }
+        
+        /* Кнопки управления (крупные для удобного нажатия пальцем на iPad) */
+        .btn-group { display: flex; }
+        .btn { 
+            background-color: #007AFF; 
+            color: white; 
+            border: none; 
+            padding: 10px 14px; 
+            margin-left: 8px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            cursor: pointer;
+            text-decoration: none;
+            -webkit-appearance: none; /* Убирает дефолтные стили Safari */
+        }
+        .btn-copy { background-color: #34C759; }
+        
+        .loading { color: #8E8E93; font-size: 16px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>iPad 4 Cinema v2.0</h1>
-
-    <div class="search-box">
-        <input type="text" id="kpId" placeholder="Вставьте ID Кинопоиска (например: 435) или IMDb ID...">
-        <button onclick="loadPlayer()" class="btn-main">Запустить плеер</button>
-        <div class="info-text">
-            Чтобы плеер гарантированно открылся на старом iPad без ошибок «404» и «Поток не найден», мы используем прямую инициализацию по ID Кинопоиска. Просто скопируйте цифры из ссылки фильма на Кинопоиске.
-        </div>
+    <h1>Kinopad</h1>
+    <div class="container" id="content">
+        <div class="loading">Загрузка эпизодов...</div>
     </div>
 
-    <div class="player-container">
-        <iframe id="cinemaFrame" allowfullscreen playsinline src="about:blank"></iframe>
-    </div>
+<script>
+    // ⚠️ ВАЖНО: Замените эту ссылку на ваш адрес на PythonAnywhere!
+    var API_URL = "https://ваш_логин.pythonanywhere.com/get_episodes";
 
-    <script>
-        function loadPlayer() {
-            let inputVal = document.getElementById('kpId').value.trim();
-            const iframe = document.getElementById('cinemaFrame');
-                        
-            if (!inputVal) {
-                alert("Пожалуйста, введите ID фильма или сериала.");
-                return;
-            }
-
-            // ИСПРАВЛЕНО: Правильный JavaScript синтаксис регулярного выражения для поиска ID
-            if (inputVal.includes("kinopoisk.ru")) {
-                const match = inputVal.match(/\/film\/(\d+)|\/series\/(\d+)/);
-                if (match) {
-                    inputVal = match[1] || match[2];
+    function loadData() {
+        // Используем старый XMLHttpRequest вместо fetch для поддержки iOS 10
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", API_URL, true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    renderList(data);
+                } else {
+                    document.getElementById("content").innerHTML = "<div class='loading'>Ошибка загрузки данных с сервера.</div>";
                 }
             }
+        };
+        xhr.send();
+    }
 
-            let targetUrl = "";
-            if (inputVal.startsWith("tt")) {
-                targetUrl = "https://vidsrc.to/embed/tv/" + inputVal;
-            } else {
-                targetUrl = "https://vidsrc.cc/v2/embed/kp/" + inputVal;
+    function renderList(episodes) {
+        var contentDiv = document.getElementById("content");
+        if (episodes.length === 0) {
+            contentDiv.innerHTML = "<div class='loading'>Эпизодов пока нет.</div>";
+            return;
+        }
+
+        var html = "";
+        var currentShow = "";
+        var currentSeason = "";
+
+        for (var i = 0; i < episodes.length; i++) {
+            var ep = episodes[i];
+
+            // Разделение по Сериалам
+            if (currentShow !== ep.show_name) {
+                if (currentShow !== "") { html += "</div>"; } // закрываем старую секцию
+                currentShow = ep.show_name;
+                currentSeason = ""; // Сбрасываем сезон для нового сериала
+                html += "<div class='show-section'><h2 class='show-title'>" + currentShow + "</h2>";
             }
 
-            iframe.src = targetUrl;
+            // Разделение по Сезонам внутри сериала
+            if (currentSeason !== ep.season) {
+                currentSeason = ep.season;
+                html += "<div class='season-title'>" + currentSeason + "</div>";
+            }
+
+            // Верстка самого эпизода
+            html += "<div class='episode-row'>" +
+                        "<div class='episode-info'>" + ep.episode_number + "</div>" +
+                        "<div class='btn-group'>" +
+                            // Экранируем ссылку для передачи в JS
+                            "<button class='btn btn-copy' onclick='copyLink(\"" + ep.link + "\")'>Копировать</button>" +
+                            "<a class='btn' href='" + ep.link + "' target='_blank'>Открыть</a>" +
+                        "</div>" +
+                    "</div>";
         }
-    </script>
+
+        if (html !== "") { html += "</div>"; }
+        contentDiv.innerHTML = html;
+    }
+
+    // Функция копирования ссылок (работает в старых iOS через создание временного textarea)
+    window.copyLink = function(url) {
+        var textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";  // чтобы не дергался экран
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand("copy");
+            alert("Ссылка скопирована!");
+        } catch (err) {
+            alert("Не удалось скопировать");
+        }
+        document.body.removeChild(textarea);
+    };
+
+    // Запуск загрузки при открытии страницы
+    loadData();
+</script>
+
 </body>
 </html>
