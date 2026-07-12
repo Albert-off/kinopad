@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinopad Advanced Control Panel</title>
+    <style>
+        :root { 
+            --bg: #0F0F11; 
+            --card: #18181C; 
+            --accent: #007AFF; 
+            --accent-bg: rgba(0, 122, 255, 0.1);
+            --danger: #FF3B30; 
+            --warning: #FF9500;
+            --border: #2C2C32;
+        }
+        body { 
+            background: var(--bg); 
+            color: #E5E5EA; 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            padding: 20px; 
+            margin: 0; 
+        }
+        
+        /* Контейнер 1280px */
+        .container { 
+            max-width: 1280px; 
+            margin: 0 auto; 
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        @media(min-width: 768px) {
+            .container { grid-template-columns: 350px 1fr; }
+        }
+
+        h2 { margin-top: 0; color: #FFF; font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        
+        /* Форма */
+        .sticky-form { position: sticky; top: 20px; background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid var(--border); height: fit-content; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 10px; border: 1px solid var(--border); background: #242428; color: #fff; font-size: 16px; box-sizing: border-box; }
+        button { background: var(--accent); font-weight: 600; border: none; cursor: pointer; }
+        button:active { opacity: 0.8; }
+        
+        /* Визуальные группы */
+        .show-group { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .show-header { font-size: 24px; font-weight: bold; color: #FFF; margin-bottom: 15px; display: flex; align-items: center; }
+        .show-header::before { content: "🎬"; margin-right: 10px; font-size: 20px; }
+        
+        .season-group { margin-left: 15px; border-left: 3px solid var(--accent); padding-left: 15px; margin-bottom: 15px; }
+        .season-header { font-size: 18px; font-weight: 600; color: var(--warning); margin-bottom: 10px; }
+        
+        /* Сетка эпизодов */
+        .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        
+        /* Карточка серии */
+        .ep-card { background: #242428; border: 1px solid var(--border); padding: 14px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; }
+        .ep-title { font-weight: 600; color: #FFF; font-size: 16px; }
+        .ep-meta { font-size: 13px; color: #8E8E93; margin: 4px 0 10px 0; word-break: break-all; }
+        
+        .actions { display: flex; gap: 8px; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; margin: 0; width: auto; flex: 1; }
+        .edit-btn { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent); }
+        .del-btn { background: rgba(255, 59, 48, 0.1); color: var(--danger); border: 1px solid var(--danger); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Левая панель: Форма добавления/изменения -->
+        <div class="sticky-form">
+            <h2 id="formTitle">Добавить серию</h2>
+            <form id="episodeForm">
+                <input type="hidden" id="edit_id">
+                <input type="text" id="show_name" placeholder="Название сериала" required>
+                <input type="text" id="season" placeholder="Сезон (например: 1 сезон)" required>
+                <input type="text" id="episode_number" placeholder="Серия (например: 01 серия)" required>
+                <input type="url" id="link" placeholder="Ссылка на плеер/видео" required>
+                <input type="number" id="position" placeholder="Позиция для сортировки" value="0">
+                <button type="submit" id="submitBtn">Сохранить серию</button>
+                <button type="button" id="cancelEditBtn" style="display:none; background:#48484A;">Отмена редактирования</button>
+            </form>
+        </div>
+
+        <!-- Правая панель: Группированный контент -->
+        <div>
+            <h2>Управление структурой медиа</h2>
+            <div id="workspace">Загрузка данных...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://ваш_логин.pythonanywhere.com";
+        const login = prompt("Введите логин панели управления:");
+        const password = prompt("Введите пароль:");
+        
+        // Хранилище загруженных данных в памяти для быстрого редактирования
+        let localEpisodes = []; 
+
+        async function loadData() {
+            try {
+                const res = await fetch(`${API_BASE}/get_episodes`);
+                localEpisodes = await res.json();
+                renderWorkspace();
+            } catch (err) {
+                document.getElementById('workspace').innerText = "Ошибка связи с PythonAnywhere.";
+            }
+        }
+
+        function renderWorkspace() {
+            const workspace = document.getElementById('workspace');
+            if (localEpisodes.length === 0) {
+                workspace.innerHTML = "<p style='color:#8e8e93;'>База данных пуста. Добавьте первый сериал слева.</p>";
+                return;
+            }
+
+            // Группируем данные: Сериал -> Сезон -> Массив серий
+            const tree = {};
+            localEpisodes.forEach(ep => {
+                if (!tree[ep.show_name]) tree[ep.show_name] = {};
+                if (!tree[ep.show_name][ep.season]) tree[ep.show_name][ep.season] = [];
+                tree[ep.show_name][ep.season].push(ep);
+            });
+
+            let html = "";
+            for (const show in tree) {
+                html += `<div class="show-group">
+                            <div class="show-header">${show}</div>`;
+                
+                for (const season in tree[show]) {
+                    html += `<div class="season-group">
+                                <div class="season-header">${season}</div>
+                                <div class="episodes-grid">`;
+                    
+                    tree[show][season].forEach(ep => {
+                        html += `
+                            <div class="ep-card">
+                                <div>
+                                    <div class="ep-title">${ep.episode_number} <span style="color:var(--accent); font-size:12px;">(Индекс: ${ep.position})</span></div>
+                                    <div class="ep-meta">${ep.link}</div>
+                                </div>
+                                <div class="actions">
+                                    <button class="btn-sm edit-btn" onclick="startEdit(${ep.id})">Изменить</button>
+                                    <button class="btn-sm del-btn" onclick="deleteEp(${ep.id})">Удалить</button>
+                                </div>
+                            </div>`;
+                    });
+                    
+                    html += `</div></div>`; // закрываем grid и season-group
+                }
+                html += `</div>`; // закрываем show-group
+            }
+            workspace.innerHTML = html;
+        }
+
+        // Действие при отправке формы (Добавление или Изменение)
+        document.getElementById('episodeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const editId = document.getElementById('edit_id').value;
+            const payload = {
+                login, password,
+                show_name: document.getElementById('show_name').value,
+                season: document.getElementById('season').value,
+                episode_number: document.getElementById('episode_number').value,
+                link: document.getElementById('link').value,
+                position: parseInt(document.getElementById('position').value) || 0
+            };
+
+            // Если мы редактируем запись, а сервер не поддерживает INSERT OR REPLACE:
+            // Сначала удаляем старую запись, затем добавляем измененную. 
+            if (editId) {
+                await fetch(`${API_BASE}/delete_episode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, password, id: parseInt(editId) })
+                });
+            }
+
+            const res = await fetch(`${API_BASE}/add_episode`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await res.json();
+            if (result.status === 'ok') {
+                resetForm();
+                loadData();
+            } else {
+                alert('Ошибка авторизации или сервера');
+            }
+        });
+
+        // Режим редактирования: заполняем форму данными из памяти
+        window.startEdit = function(id) {
+            const ep = localEpisodes.find(item => item.id === id);
+            if (!ep) return;
+
+            document.getElementById('edit_id').value = ep.id;
+            document.getElementById('show_name').value = ep.show_name;
+            document.getElementById('season').value = ep.season;
+            document.getElementById('episode_number').value = ep.episode_number;
+            document.getElementById('link').value = ep.link;
+            document.getElementById('position').value = ep.position;
+
+            document.getElementById('formTitle').innerText = "Изменить серию";
+            document.getElementById('submitBtn').innerText = "Применить изменения";
+            document.getElementById('cancelEditBtn').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        function resetForm() {
+            document.getElementById('edit_id').value = "";
+            document.getElementById('episodeForm').reset();
+            document.getElementById('formTitle').innerText = "Добавить серию";
+            document.getElementById('submitBtn').innerText = "Сохранить серию";
+            document.getElementById('cancelEditBtn').style.display = "none";
+        }
+
+        document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+        window.deleteEp = async (id) => {
+            if (!confirm('Удалить эту серию окончательно?')) return;
+            await fetch(`${API_BASE}/delete_episode`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password, id })
+            });
+            loadData();
+        };
+
+        // Запуск
+        loadData();
+    </script>
+</body>
+</html>
