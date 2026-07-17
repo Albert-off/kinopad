@@ -100,8 +100,12 @@
         .show-header::before { content: "🎬"; margin-right: 10px; font-size: 20px; }
         
         .season-group { margin-left: 15px; border-left: 3px solid var(--accent); padding-left: 15px; margin-bottom: 15px; }
-        .season-header { font-size: 18px; font-weight: 600; color: var(--warning); margin-bottom: 10px; }
+        .season-header { font-size: 18px; font-weight: 600; color: var(--warning); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         
+        /* Кнопка быстрой вставки серии */
+        .add-fast-btn { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; font-size: 13px; border-radius: 6px; width: auto; margin: 0; font-weight: normal; }
+        .add-fast-btn:hover { background: var(--accent); color: #fff; }
+
         /* Сетка эпизодов */
         .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
         
@@ -216,8 +220,15 @@
                             <div class="show-header">${show}</div>`;
                 
                 for (const season in tree[show]) {
+                    // Экранируем строки для безопасной передачи в onclick аттрибут
+                    const safeShow = show.replace(/'/g, "\\'");
+                    const safeSeason = season.replace(/'/g, "\\'");
+
                     html += `<div class="season-group">
-                                <div class="season-header">${season}</div>
+                                <div class="season-header">
+                                    <span>${season}</span>
+                                    <button class="add-fast-btn" onclick="prepareNextEpisode('${safeShow}', '${safeSeason}')">+ Add episode</button>
+                                </div>
                                 <div class="episodes-grid">`;
                     
                     tree[show][season].forEach(ep => {
@@ -241,6 +252,73 @@
             }
             workspace.innerHTML = html;
         }
+
+        // Автоматическая генерация параметров для новой серии
+        window.prepareNextEpisode = function(showName, seasonName) {
+            // Сбрасываем форму в режим добавления (очистит id редактирования)
+            resetForm();
+
+            // Ищем все серии этого конкретного сезона конкретного сериала
+            const filtered = localEpisodes.filter(ep => ep.show_name === showName && ep.season === seasonName);
+
+            let nextEpNum = 1;
+            let nextPos = 0;
+            let epTextTemplate = "episode"; // Текст по умолчанию, если в базе пусто
+
+            if (filtered.length > 0) {
+                // 1. Поиск максимальной позиции
+                const positions = filtered.map(ep => parseInt(ep.position)).filter(p => !isNaN(p));
+                if (positions.length > 0) {
+                    nextPos = Math.max(...positions) + 1;
+                }
+
+                // 2. Поиск максимального номера эпизода на основе разбора строк
+                let maxEpValue = 0;
+                filtered.forEach(ep => {
+                    const str = ep.episode_number || "";
+                    // Извлекаем первое попавшееся число из строки
+                    const match = str.match(/\d+/);
+                    if (match) {
+                        const num = parseInt(match[0], 10);
+                        if (num > maxEpValue) {
+                            maxEpValue = num;
+                        }
+                    }
+                    // Пытаемся сохранить структуру слова после цифры (серия / episode и т.д.)
+                    const textMatch = str.match(/\d+\s*(.*)/);
+                    if (textMatch && textMatch[1]) {
+                        epTextTemplate = textMatch[1].trim();
+                    }
+                });
+                nextEpNum = maxEpValue + 1;
+            }
+
+            // Форматирование номера эпизода (с ведущим нулем, если от 1 до 9)
+            let formattedEpStr = "";
+            if (nextEpNum >= 0 && nextEpNum <= 9) {
+                formattedEpStr = `0${nextEpNum} ${epTextTemplate}`;
+            } else {
+                formattedEpStr = `${nextEpNum} ${epTextTemplate}`;
+            }
+
+            // Заполнение полей формы
+            document.getElementById('show_name').value = showName;
+            document.getElementById('season').value = seasonName;
+            document.getElementById('episode_number').value = formattedEpStr;
+            document.getElementById('position').value = nextPos;
+            document.getElementById('link').value = ""; // Ссылку пропускаем (оставляем пустой для ввода)
+
+            // Открытие формы (актуально для мобильной версии)
+            const formBlock = document.getElementById('formBlock');
+            if (window.innerWidth < 768 && !formBlock.classList.contains('active')) {
+                toggleMobileForm();
+            } else if (window.innerWidth >= 768) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // Фокусируем пользователя на поле ввода ссылки
+            document.getElementById('link').focus();
+        };
 
         // Действие при отправке формы (Добавление или Изменение)
         document.getElementById('episodeForm').addEventListener('submit', async (e) => {
