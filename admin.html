@@ -12,6 +12,7 @@
             --accent-bg: rgba(0, 122, 255, 0.1);
             --danger: #FF3B30; 
             --warning: #FF9500;
+            --success: #34C759;
             --border: #2C2C32;
         }
         body { 
@@ -110,9 +111,36 @@
         .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
         
         /* Карточка серии */
-        .ep-card { background: #242428; border: 1px solid var(--border); padding: 14px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; }
-        .ep-title { font-weight: 600; color: #FFF; font-size: 16px; }
-        .ep-meta { font-size: 13px; color: #8E8E93; margin: 4px 0 10px 0; word-break: break-all; }
+        .ep-card { background: #242428; border: 1px solid var(--border); padding: 14px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; position: relative; }
+        
+        /* Шапка карточки для размещения заголовка и статуса */
+        .ep-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        
+        /* Кнопка циклического статуса */
+        .status-toggle-btn {
+            background: transparent;
+            border: 2px solid #48484A;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .status-toggle-btn.watching { border-color: var(--warning); background: rgba(255, 149, 0, 0.1); }
+        .status-toggle-btn.watched { border-color: var(--success); background: rgba(52, 199, 89, 0.1); color: var(--success); }
+        
+        .ep-title { font-weight: 600; color: #FFF; font-size: 16px; flex-grow: 1; }
+        .ep-meta { font-size: 13px; color: #8E8E93; margin: 6px 0; word-break: break-all; }
+        
+        /* Блок компактной даты */
+        .ep-date { font-size: 11px; color: #636366; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
         
         .actions { display: flex; gap: 8px; align-items: center; }
         .btn-sm { padding: 6px 12px; font-size: 13px; margin: 0; width: auto; flex: 1; height: 34px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
@@ -149,6 +177,8 @@
             <h2 id="formTitle">Добавить серию</h2>
             <form id="episodeForm">
                 <input type="hidden" id="edit_id">
+                <input type="hidden" id="status_hidden" value="не посмотрел">
+                <input type="hidden" id="updated_at_hidden" value="">
                 <input type="text" id="show_name" placeholder="Название сериала" required>
                 <input type="text" id="season" placeholder="Сезон (например: 1 сезон)" required>
                 <input type="text" id="episode_number" placeholder="Серия (например: 01 серия)" required>
@@ -173,6 +203,22 @@
         
         // Хранилище загруженных данных в памяти для быстрого редактирования
         let localEpisodes = []; 
+
+        // Вспомогательная функция красивого форматирования даты из формата YYYY-MM-DD HH:MM:SS
+        function formatDate(dateStr) {
+            if (!dateStr) return "Дата неизвестна";
+            try {
+                // Разделяем строку "YYYY-MM-DD HH:MM:SS" или похожую
+                const t = dateStr.split(/[- :]/);
+                if(t.length >= 5) {
+                    // Возвращаем в формате DD.MM.YYYY HH:MM
+                    return `${t[2]}.${t[1]}.${t[0]} ${t[3]}:${t[4]}`;
+                }
+                return dateStr;
+            } catch(e) {
+                return dateStr;
+            }
+        }
 
         // Переключение видимости формы на мобильных устройствах
         function toggleMobileForm() {
@@ -220,7 +266,6 @@
                             <div class="show-header">${show}</div>`;
                 
                 for (const season in tree[show]) {
-                    // Экранируем строки для безопасной передачи в onclick аттрибут
                     const safeShow = show.replace(/'/g, "\\'");
                     const safeSeason = season.replace(/'/g, "\\'");
 
@@ -232,51 +277,124 @@
                                 <div class="episodes-grid">`;
                     
                     tree[show][season].forEach(ep => {
+                        // Определяем класс стиля и символ на основе статуса из БД
+                        let statusClass = "";
+                        let statusContent = "";
+                        const currentStatus = ep.status || "не посмотрел";
+
+                        if (currentStatus === "смотрю") {
+                            statusClass = "watching";
+                            statusContent = "👀";
+                        } else if (currentStatus === "смотрел") {
+                            statusClass = "watched";
+                            statusContent = "✓";
+                        }
+
                         html += `
                             <div class="ep-card">
                                 <div>
-                                    <div class="ep-title">${ep.episode_number} <span style="color:var(--accent); font-size:12px;">(Индекс: ${ep.position})</span></div>
+                                    <div class="ep-card-header">
+                                        <div class="ep-title">${ep.episode_number} <span style="color:var(--accent); font-size:12px;">(Индекс: ${ep.position})</span></div>
+                                        <button class="status-toggle-btn ${statusClass}" onclick="cycleEpisodeStatus(${ep.id}, event)" title="Изменить статус: ${currentStatus}">
+                                            ${statusContent}
+                                        </button>
+                                    </div>
                                     <div class="ep-meta">${ep.link}</div>
                                 </div>
-                                <div class="actions">
-                                    <button class="btn-sm edit-btn" onclick="startEdit(${ep.id})">Изменить</button>
-                                    <button class="btn-sm del-btn" onclick="deleteEp(${ep.id})">Удалить</button>
-                                    <a class="open-btn" href="${ep.link}" target="_blank" title="Открыть в новой вкладке">↗</a>
+                                <div>
+                                    <div class="ep-date">🕒 ${formatDate(ep.updated_at)}</div>
+                                    <div class="actions">
+                                        <button class="btn-sm edit-btn" onclick="startEdit(${ep.id})">Изменить</button>
+                                        <button class="btn-sm del-btn" onclick="deleteEp(${ep.id})">Удалить</button>
+                                        <a class="open-btn" href="${ep.link}" target="_blank" title="Открыть в новой вкладке">↗</a>
+                                    </div>
                                 </div>
                             </div>`;
                     });
                     
-                    html += `</div></div>`; // закрываем grid и season-group
+                    html += `</div></div>`;
                 }
-                html += `</div>`; // закрываем show-group
+                html += `</div>`;
             }
             workspace.innerHTML = html;
         }
 
+        // Циклическое переключение статуса по клику на галочку
+        window.cycleEpisodeStatus = async function(id, event) {
+            event.stopPropagation(); // Исключаем срабатывание лишних кликов по карточке
+            const ep = localEpisodes.find(item => item.id === id);
+            if (!ep) return;
+
+            let nextStatus = "не посмотрел";
+            const currentStatus = ep.status || "не посмотрел";
+
+            if (currentStatus === "не посмотрел") {
+                nextStatus = "смотрю";
+            } else if (currentStatus === "смотрю") {
+                nextStatus = "смотрел";
+            } else if (currentStatus === "смотрел") {
+                nextStatus = "не посмотрел";
+            }
+
+            // Генерируем текущую дату обновления (в ISO формате бэкенда)
+            const now = new Date();
+            const pad = (num) => String(num).padStart(2, '0');
+            const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+            // Конструируем payload с сохранением старых параметров, но новыми статусом и временем
+            const payload = {
+                login, password,
+                show_name: ep.show_name,
+                season: ep.season,
+                episode_number: ep.episode_number,
+                link: ep.link,
+                position: ep.position,
+                status: nextStatus,
+                updated_at: timestamp
+            };
+
+            // Перезаписываем объект через удаление старого ID и добавление нового
+            try {
+                await fetch(`${API_BASE}/delete_episode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, password, id: parseInt(id) })
+                });
+
+                const res = await fetch(`${API_BASE}/add_episode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    loadData(); // Быстро обновляем интерфейс
+                }
+            } catch (err) {
+                alert("Ошибка синхронизации статуса с бэкендом.");
+            }
+        };
+
         // Автоматическая генерация параметров для новой серии
         window.prepareNextEpisode = function(showName, seasonName) {
-            // Сбрасываем форму в режим добавления (очистит id редактирования)
             resetForm();
 
-            // Ищем все серии этого конкретного сезона конкретного сериала
             const filtered = localEpisodes.filter(ep => ep.show_name === showName && ep.season === seasonName);
 
             let nextEpNum = 1;
             let nextPos = 0;
-            let epTextTemplate = "episode"; // Текст по умолчанию, если в базе пусто
+            let epTextTemplate = "episode";
 
             if (filtered.length > 0) {
-                // 1. Поиск максимальной позиции
                 const positions = filtered.map(ep => parseInt(ep.position)).filter(p => !isNaN(p));
                 if (positions.length > 0) {
                     nextPos = Math.max(...positions) + 1;
                 }
 
-                // 2. Поиск максимального номера эпизода на основе разбора строк
                 let maxEpValue = 0;
                 filtered.forEach(ep => {
                     const str = ep.episode_number || "";
-                    // Извлекаем первое попавшееся число из строки
                     const match = str.match(/\d+/);
                     if (match) {
                         const num = parseInt(match[0], 10);
@@ -284,7 +402,6 @@
                             maxEpValue = num;
                         }
                     }
-                    // Пытаемся сохранить структуру слова после цифры (серия / episode и т.д.)
                     const textMatch = str.match(/\d+\s*(.*)/);
                     if (textMatch && textMatch[1]) {
                         epTextTemplate = textMatch[1].trim();
@@ -293,7 +410,6 @@
                 nextEpNum = maxEpValue + 1;
             }
 
-            // Форматирование номера эпизода (с ведущим нулем, если от 1 до 9)
             let formattedEpStr = "";
             if (nextEpNum >= 0 && nextEpNum <= 9) {
                 formattedEpStr = `0${nextEpNum} ${epTextTemplate}`;
@@ -301,14 +417,14 @@
                 formattedEpStr = `${nextEpNum} ${epTextTemplate}`;
             }
 
-            // Заполнение полей формы
             document.getElementById('show_name').value = showName;
             document.getElementById('season').value = seasonName;
             document.getElementById('episode_number').value = formattedEpStr;
             document.getElementById('position').value = nextPos;
-            document.getElementById('link').value = ""; // Ссылку пропускаем (оставляем пустой для ввода)
+            document.getElementById('status_hidden').value = "не посмотрел"; // Новые серии всегда "не посмотрел"
+            document.getElementById('updated_at_hidden').value = ""; // Сервер поставит текущее время
+            document.getElementById('link').value = "";
 
-            // Открытие формы (актуально для мобильной версии)
             const formBlock = document.getElementById('formBlock');
             if (window.innerWidth < 768 && !formBlock.classList.contains('active')) {
                 toggleMobileForm();
@@ -316,7 +432,6 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
             
-            // Фокусируем пользователя на поле ввода ссылки
             document.getElementById('link').focus();
         };
 
@@ -331,7 +446,9 @@
                 season: document.getElementById('season').value,
                 episode_number: document.getElementById('episode_number').value,
                 link: document.getElementById('link').value,
-                position: parseInt(document.getElementById('position').value) || 0
+                position: parseInt(document.getElementById('position').value) || 0,
+                status: document.getElementById('status_hidden').value,
+                updated_at: document.getElementById('updated_at_hidden').value || undefined
             };
 
             if (editId) {
@@ -352,7 +469,6 @@
             if (result.status === 'ok') {
                 resetForm();
                 loadData();
-                // Закрываем форму на мобилке после успешного сохранения
                 if(document.getElementById('formBlock').classList.contains('active')) {
                     toggleMobileForm();
                 }
@@ -372,12 +488,13 @@
             document.getElementById('episode_number').value = ep.episode_number;
             document.getElementById('link').value = ep.link;
             document.getElementById('position').value = ep.position;
+            document.getElementById('status_hidden').value = ep.status || "не посмотрел";
+            document.getElementById('updated_at_hidden').value = ep.updated_at || "";
 
             document.getElementById('formTitle').innerText = "Изменить серию";
             document.getElementById('submitBtn').innerText = "Применить изменения";
             document.getElementById('cancelEditBtn').style.display = "block";
             
-            // Если на мобилке — открываем форму автоматически при редактировании
             const formBlock = document.getElementById('formBlock');
             if (window.innerWidth < 768 && !formBlock.classList.contains('active')) {
                 toggleMobileForm();
@@ -388,6 +505,8 @@
 
         function resetForm() {
             document.getElementById('edit_id').value = "";
+            document.getElementById('status_hidden').value = "не посмотрел";
+            document.getElementById('updated_at_hidden').value = "";
             document.getElementById('episodeForm').reset();
             document.getElementById('formTitle').innerText = "Добавить серию";
             document.getElementById('submitBtn').innerText = "Сохранить серию";
