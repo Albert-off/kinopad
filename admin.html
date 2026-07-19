@@ -179,7 +179,6 @@
                 <input type="hidden" id="edit_id">
                 <input type="hidden" id="status_hidden" value="не посмотрел">
                 <input type="hidden" id="updated_at_hidden" value="">
-                <input type="hidden" id="old_link_hidden" value="">
                 <input type="text" id="show_name" placeholder="Название сериала" required>
                 <input type="text" id="season" placeholder="Сезон (например: 1 сезон)" required>
                 <input type="text" id="episode_number" placeholder="Серия (например: 01 серия)" required>
@@ -204,6 +203,13 @@
         
         // Хранилище загруженных данных в памяти для быстрого редактирования
         let localEpisodes = []; 
+
+        // Вспомогательная функция генерации текущей даты в формате YYYY-MM-DD HH:MM:SS
+        function getNowTimestamp() {
+            const now = new Date();
+            const pad = (num) => String(num).padStart(2, '0');
+            return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        }
 
         // Вспомогательная функция красивого форматирования даты из формата YYYY-MM-DD HH:MM:SS
         function formatDate(dateStr) {
@@ -337,7 +343,7 @@
                 nextStatus = "не посмотрел";
             }
 
-            // Конструируем payload с сохранением старого времени (updated_at)
+            // Конструируем payload с сохранением старых параметров и СТАРОЙ даты
             const payload = {
                 login, password,
                 show_name: ep.show_name,
@@ -346,7 +352,7 @@
                 link: ep.link,
                 position: ep.position,
                 status: nextStatus,
-                updated_at: ep.updated_at // <-- Передаем старую дату без изменений
+                updated_at: ep.updated_at // Используем сохраненную дату вместо генерации новой
             };
 
             // Перезаписываем объект через удаление старого ID и добавление нового
@@ -419,7 +425,6 @@
             document.getElementById('position').value = nextPos;
             document.getElementById('status_hidden').value = "не посмотрел"; // Новые серии всегда "не посмотрел"
             document.getElementById('updated_at_hidden').value = ""; // Сервер поставит текущее время
-            document.getElementById('old_link_hidden').value = "";
             document.getElementById('link').value = "";
 
             const formBlock = document.getElementById('formBlock');
@@ -437,20 +442,11 @@
             e.preventDefault();
             
             const editId = document.getElementById('edit_id').value;
-            const currentLink = document.getElementById('link').value;
-            const oldLink = document.getElementById('old_link_hidden').value;
-            let savedUpdatedAt = document.getElementById('updated_at_hidden').value;
-
-            // Если это редактирование существующей записи, проверяем: изменился ли URL (.ep-meta)?
+            
+            // Если мы РЕДАКТИРУЕМ эпизод через форму, принудительно обновляем дату на текущую
+            let finalTimestamp = document.getElementById('updated_at_hidden').value || undefined;
             if (editId) {
-                // Если ссылка осталась прежней, оставляем старую дату. Если изменилась — стираем дату, чтобы сервер сгенерировал новую.
-                if (currentLink === oldLink) {
-                    // Ссылка не менялась, сохраняем дату
-                } else {
-                    savedUpdatedAt = ""; // Ссылка изменилась, обновляем дату
-                }
-            } else {
-                savedUpdatedAt = ""; // Создание нового эпизода — всегда новая дата
+                finalTimestamp = getNowTimestamp();
             }
 
             const payload = {
@@ -458,10 +454,10 @@
                 show_name: document.getElementById('show_name').value,
                 season: document.getElementById('season').value,
                 episode_number: document.getElementById('episode_number').value,
-                link: currentLink,
+                link: document.getElementById('link').value,
                 position: parseInt(document.getElementById('position').value) || 0,
                 status: document.getElementById('status_hidden').value,
-                updated_at: savedUpdatedAt || undefined
+                updated_at: finalTimestamp
             };
 
             if (editId) {
@@ -503,7 +499,6 @@
             document.getElementById('position').value = ep.position;
             document.getElementById('status_hidden').value = ep.status || "не посмотрел";
             document.getElementById('updated_at_hidden').value = ep.updated_at || "";
-            document.getElementById('old_link_hidden').value = ep.link || ""; // Сохраняем исходный URL для проверки
 
             document.getElementById('formTitle').innerText = "Изменить серию";
             document.getElementById('submitBtn').innerText = "Применить изменения";
@@ -521,7 +516,6 @@
             document.getElementById('edit_id').value = "";
             document.getElementById('status_hidden').value = "не посмотрел";
             document.getElementById('updated_at_hidden').value = "";
-            document.getElementById('old_link_hidden').value = "";
             document.getElementById('episodeForm').reset();
             document.getElementById('formTitle').innerText = "Добавить серию";
             document.getElementById('submitBtn').innerText = "Сохранить серию";
